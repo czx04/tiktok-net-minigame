@@ -19,4 +19,4 @@ npm run fake
 - `ws://localhost:8787/ws`: nhận trạng thái ngay khi nối, rồi các sự kiện `join`, `like`, `comment`, `gift` và cập nhật `status`.
 - `GET /avatar?url=<URL đã encode>`: proxy ảnh HTTPS từ các CDN TikTok được phép; giới hạn 2 MB, timeout 8 giây, cache 1 giờ (tối đa 300 ảnh), không theo redirect. HTTP có CORS `*`.
 
-Client dùng `connectLive({ url, onEvent, onStatus })` từ `src/live/tiktok.js`; tự nối lại sau 3 giây, gọi `close()` để dừng. `online` cho biết kết nối tới server, `connected` cho biết kết nối tới TikTok; chế độ giả lập giữ `connected: false`. Nhấn Ctrl+C để tắt server.
+Client dùng `connectLive({ url, onEvent, onStatus })` từ `src/live/tiktok.js`; tự nối lại (3 giây, tăng dần tới 30 giây nếu server chưa bật), gọi `close()` để dừng. `online` cho biết kết nối tới server, `connected` cho biết kết nối tới TikTok; chế độ `--fake` báo `connected: true` với username `thu_nghiem` để thử đúng luồng thật. Nếu đổi `PORT` thì sửa cả `live.port` trong `src/config.js`. Nhấn Ctrl+C để tắt server.

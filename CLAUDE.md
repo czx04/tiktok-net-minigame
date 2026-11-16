@@ -3,8 +3,13 @@
 Đặc tả gốc: `PROMPT.md` (đọc trước). Trả lời người dùng bằng tiếng Việt, ngắn gọn. Làm từng giai đoạn, xong giai đoạn nào thì chạy thử, chụp màn hình, báo rồi mới sang giai đoạn sau.
 
 ## Trạng thái
-- Giai đoạn 1: xong (quán 20 máy, khách vào/ngồi, bảng tên + giờ, tim, chat, nhân viên giao mì/Sting, thanh giả lập, phím H).
-- Giai đoạn 2 trở đi: chưa làm. `blackout()` / `momEvent()` và quà vừa/quà to trong `src/game/game.js` đang là chỗ giữ chỗ.
+- Giai đoạn 1–4 đã xong. Chưa thử với một buổi TikTok LIVE thật vì chưa có username. Đường truyền đã thử bằng `cd server && npm run fake`.
+- Giai đoạn 2: luật chơi nằm ở `src/game/game.js`, gồm khóa máy, VIP, bao quán, mất điện và mẹ đến. Gục đầu / ăn mì làm bằng cách xoay xương `head`/`torso` (`Character.setLean`), vì animation `sit` không điều khiển 2 xương này.
+- Giai đoạn 3:
+  - `server/index.js` dùng tiktok-live-connector 2.5.0. Dữ liệu thô là proto v3: tên đăng nhập có thể nằm ở `displayId` thay cho `uniqueId`, quà nằm ở `data.gift.{name,diamondCount,type}`. Server đọc phòng thủ cả hai kiểu.
+  - Phía client có `src/live/tiktok.js` (WebSocket) và `src/live/gifts.js` (ánh xạ quà theo tên, nếu không khớp thì theo kim cương).
+  - Khi đã nối TikTok, giả lập chạy chậm lại `simSlowdownWhenLive` lần.
+- Giai đoạn 4: `README.md` và `docs/len-song.md`. URL `?clean` ẩn sẵn thanh giả lập để dùng với OBS / LIVE Studio.
 
 ## Chạy
 - `npm run dev` → http://localhost:5173. Lúc dev có `window.__step(giây, kèmGiảLập)` để tua nhanh thời gian khi kiểm thử, cùng `window.__game` và `window.__stage`.
