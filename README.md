@@ -37,6 +37,7 @@ Nếu đổi `PORT` trong `.env`, phải sửa cả `live.port` trong `src/confi
 1. **H:** ẩn/hiện thanh giả lập; ẩn thanh không dừng tự chạy.
 2. **M:** tắt/bật tiếng. Bấm vào trang trước để trang nhận phím và cho phép phát âm thanh.
 3. Mở http://localhost:5173/?clean để thanh giả lập ẩn sẵn; giả lập vẫn tự chạy theo cấu hình.
+4. Mở http://localhost:5173/?clean&safe (cửa sổ dọc) để xem trước vùng bị giao diện TikTok che trên điện thoại.
 
 ## 4. Đổi cấu hình
 
@@ -55,6 +56,8 @@ Mở `src/config.js`, sửa giá trị rồi lưu; các khoảng thời gian dư
 | Mất điện | `blackout.likesNeeded`, `blackout.autoRecoverSeconds` | Cần 30 tim hoặc tự sáng lại sau 14 giây |
 | Mẹ đến | `mom.scoldSeconds` | Mắng trong 9 giây |
 | Giả lập | `autoRun`, `sim` | Tự chạy bật sẵn; 9 khách ban đầu; khoảng cách giữa lượt vào/tim/chat/quà nằm trong `sim` |
+| Camera | `camera` | Ưu tiên lia cam (`priority`: mẹ đến > quà to > VIP > khóa máy > khách mới > quà nhỏ; 0 = không lia), thời gian mỗi cảnh, giãn cách lia theo khách mới (`joinCooldown`), zoom khung dọc, vùng an toàn (`portraitSafe`) |
+| Nhãn | `ui` | Chống chồng nhãn; khung dọc chỉ hiện đồng hồ khi sắp hết giờ |
 | Live | `live` | Bật nối server; cổng `8787`; `simWhileLive: true` cho chạy giả lập song song, chậm 2,5 lần; tối đa 5 món/combo qua `maxRepeatPerGift` |
 
 1. Để thêm tên quà TikTok, tìm `tiktokNames` của nhóm muốn nhận quà, thêm tên tiếng Anh do TikTok gửi về trong dấu nháy, ngăn bằng dấu phẩy. Ví dụ: `tiktokNames: ['Rose', 'Ten Qua Moi']`.

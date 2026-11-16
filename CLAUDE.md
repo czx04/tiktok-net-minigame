@@ -16,6 +16,12 @@
 - `window.QuanNet` = các hàm `onJoin/onLike/onComment/onGift/blackout/momEvent`. Giai đoạn 3 (TikTok) gọi vào đây.
 - Chụp màn hình không cần mở trình duyệt: dùng Chrome headless `--virtual-time-budget=15000 --screenshot=...`. Lưu ảnh vào `screenshots/`.
 
+## Tối ưu cho người xem điện thoại
+- OBS / LIVE Studio render trang ở 1080×1920 px CSS với DPR 1, sau đó TikTok thu nhỏ khoảng 2,8 lần. Vì vậy cỡ chữ phải tính theo `vw` (khung dọc) hoặc `vh` (khung ngang), KHÔNG được chặn trần bằng px. Muốn kiểm tra thì chụp headless với `--window-size=1080,1920 --force-device-scale-factor=1`.
+- Khung dọc: `fit()` đặt quán vào `CONFIG.camera.portraitSafe` để né thanh trên, khu bình luận và nút quà của TikTok. JS gắn class `body.portrait`. Thêm `?safe` vào URL để vẽ lớp mô phỏng các vùng bị TikTok che.
+- Camera dùng `stage.shot(target, {priority, seconds})`, có hàng đợi ưu tiên, `target` có thể là Object3D để đi theo nhân vật đang di chuyển. Bảng ưu tiên nằm ở `CONFIG.camera.priority`.
+- Chống chồng nhãn (`declutter` trong `game.js`, chạy 4 lần/giây): nhãn bị che thì làm mờ, ở khung dọc thì ẩn hẳn. Điểm ưu tiên có thêm thành phần xoay vòng theo thời gian để mọi nhãn đều có lúc hiện.
+
 ## Quyết định quan trọng
 - Bố cục (đơn vị thế giới, 1 = một ô sàn) nằm ở đầu `src/scene/shop.js`. Phòng rộng x∈[-4,3], z∈[-3.5,3.5]. Tường chỉ dựng ở phía sau (z−) và bên trái (x−) để camera nhìn xuyên vào. Cửa ở tường trái tại z=2; lối đi dọc nằm ở `AISLE_X=-2.65`; quầy ở góc trong cùng bên trái.
 - Mỗi máy (station) có các trường `seat` (chỗ ngồi), `lineZ` (đường đi phía sau ghế) và `faceRot`. Khách đi theo đường cửa → lối đi → lineZ → ghế.
