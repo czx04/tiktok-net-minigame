@@ -22,6 +22,9 @@ export async function makeItem(kind) {
       g.add(m);
       return m;
     });
+  } else if (kind === 'tea') {
+    const cup = await makeProp('food', 'cup-tea', { scale: 0.42 });
+    g.add(cup);
   } else {
     const can = await makeProp('food', 'soda-can', { scale: 0.36 });
     g.add(can);

@@ -53,10 +53,14 @@ Mở `src/config.js`, sửa giá trị rồi lưu; các khoảng thời gian dư
 | Quà to → bao cả quán | `gifts.big` | `item: 'all'`; tên `Galaxy`, `Lion`, `Universe`, `Interstellar`; ngưỡng 500 kim cương; +120 giây, 500 xu giả lập |
 | Mục tiêu xu | `goals`, `startCoins` | Bắt đầu 380 xu; 1.000 xu lắp điều hòa; 5.000 xu là mốc “mở tầng 2” (chưa có tầng mới) |
 | Tần suất sự kiện | `randomEventMin`, `randomEventMax` | Mỗi 30–60 giây khi tự chạy |
+| Sự kiện ngẫu nhiên | `events` | Tỉ lệ chọn từng sự kiện (`weights`); Giờ vàng (tim x2 thời gian), Shipper (mời trà đá ngẫu nhiên vài khách), Solo (người xem bình luận 1/2 để cổ vũ, người thắng +2 phút) |
+| Lưu tiến độ | `persist` | Lưu xu mục tiêu + bảng xếp hạng, tải lại trang không mất; tự bắt đầu lại sau 8 giờ; mở `?reset` để xóa ngay |
 | Mất điện | `blackout.likesNeeded`, `blackout.autoRecoverSeconds` | Cần 30 tim hoặc tự sáng lại sau 14 giây |
 | Mẹ đến | `mom.scoldSeconds` | Mắng trong 9 giây |
 | Giả lập | `autoRun`, `sim` | Tự chạy bật sẵn; 9 khách ban đầu; khoảng cách giữa lượt vào/tim/chat/quà nằm trong `sim` |
 | Camera | `camera` | Ưu tiên lia cam (`priority`: mẹ đến > quà to > VIP > khóa máy > khách mới > quà nhỏ; 0 = không lia), thời gian mỗi cảnh, giãn cách lia theo khách mới (`joinCooldown`), zoom khung dọc, vùng an toàn (`portraitSafe`) |
+| Hàng chờ | `queue` | Khi kín 20 máy: tối đa 8 người đứng chờ dọc tường trái; thả tim được lên trước, tặng quà lên đầu hàng; chờ quá 150 giây thì về |
+| Hướng dẫn | `hints` | Các câu hướng dẫn cách chơi hiện lần lượt (`{tim}` tự thay bằng số giây mỗi tim); `enabled: false` để tắt |
 | Nhãn | `ui` | Chống chồng nhãn; khung dọc chỉ hiện đồng hồ khi sắp hết giờ |
 | Live | `live` | Bật nối server; cổng `8787`; `simWhileLive: true` cho chạy giả lập song song, chậm 2,5 lần; tối đa 5 món/combo qua `maxRepeatPerGift` |
 

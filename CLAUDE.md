@@ -22,6 +22,18 @@
 - Camera dùng `stage.shot(target, {priority, seconds})`, có hàng đợi ưu tiên, `target` có thể là Object3D để đi theo nhân vật đang di chuyển. Bảng ưu tiên nằm ở `CONFIG.camera.priority`.
 - Chống chồng nhãn (`declutter` trong `game.js`, chạy 4 lần/giây): nhãn bị che thì làm mờ, ở khung dọc thì ẩn hẳn. Điểm ưu tiên có thêm thành phần xoay vòng theo thời gian để mọi nhãn đều có lúc hiện.
 
+## Hàng chờ và hướng dẫn
+- Khi kín máy, khách có trạng thái `wait`: `p.st = null`, đứng trong mảng `queue` (trong `game.js`), vị trí lấy từ `CONFIG.queue`. Mỗi lần có máy trống, `leave()` gọi `seatNext()`.
+- Thả tim / tặng quà làm tăng `p.boost`, rồi `arrangeQueue()` sắp lại hàng (sort ổn định).
+- Gọi món hoặc lên VIP khi chưa ngồi thì lưu vào `p.pending` / `p.pendingVip`, `seat()` sẽ xử lý sau.
+- Dải hướng dẫn: `src/ui/hints.js` (Codex viết), có `hints.show(text, s)` để chen ngang. Khung ngang đặt ở khoảng trống bên trái; khung dọc đặt dưới thanh mục tiêu, nên `portraitSafe.top` = 0.245.
+
+## Sự kiện, lưu tiến độ, hiệu năng
+- Sự kiện: `randomEvent()` chọn theo `CONFIG.events.weights` trong số blackout / mom / happyHour / shipper / duel. Mỗi lúc chỉ chạy 1 sự kiện (`eventBusy()`). Solo nhận phiếu qua bình luận "1"/"2", mỗi người 1 phiếu. Giả lập tự bình chọn thông qua `handlers.voteOptions()`.
+- Lưu tiến độ: `src/game/persist.js` lưu vào localStorage (`quannet.session.v1`) gồm `{coins, goalIdx, aircon, leaders}`. `?reset` xóa dữ liệu rồi tự bỏ `?reset` khỏi URL.
+- Rò rỉ bộ nhớ: texture xương (bone texture) của SkinnedMesh không tự giải phóng, nên `Character.dispose()` phải gọi `skeleton.dispose()`. KHÔNG dispose geometry / material / texture màu vì các bản clone dùng chung. Đã thử 20 phút giả lập với cường độ cao: texture đứng yên khoảng 100, heap dao động 41–49MB.
+- Hiệu năng (Mac, khung 1024×768, DPR 2): luật chơi khoảng 3,6ms và vẽ khoảng 3,4ms mỗi khung hình, khoảng 870 lệnh vẽ. Nếu máy phát live yếu thì gộp mesh tĩnh (sàn, bàn).
+
 ## Quyết định quan trọng
 - Bố cục (đơn vị thế giới, 1 = một ô sàn) nằm ở đầu `src/scene/shop.js`. Phòng rộng x∈[-4,3], z∈[-3.5,3.5]. Tường chỉ dựng ở phía sau (z−) và bên trái (x−) để camera nhìn xuyên vào. Cửa ở tường trái tại z=2; lối đi dọc nằm ở `AISLE_X=-2.65`; quầy ở góc trong cùng bên trái.
 - Mỗi máy (station) có các trường `seat` (chỗ ngồi), `lineZ` (đường đi phía sau ghế) và `faceRot`. Khách đi theo đường cửa → lối đi → lineZ → ghế.

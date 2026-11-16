@@ -47,9 +47,14 @@ export function createSimulator(handlers, config) {
     if (type === 'join') { handlers.onJoin(randomName()); return; }
     if (type === 'blackout') { handlers.blackout(); return; }
     if (type === 'mom') { handlers.momEvent(); return; }
+    if (type === 'random') { handlers.randomEvent?.(); return; }
+    if (['happyHour', 'shipper', 'duel'].includes(type)) { handlers[type === 'duel' ? 'duelEvent' : type]?.(); return; }
     const present = players();
     if (type === 'like' && present.length) handlers.onLike(pick(present), 1 + Math.floor(Math.random() * 5));
-    if (type === 'comment' && present.length) handlers.onComment(pick(present), pick(COMMENTS));
+    if (type === 'comment' && present.length) {
+      const opts = handlers.voteOptions?.();   // đang solo → giả lập người xem bình chọn
+      handlers.onComment(pick(present), opts && Math.random() < 0.7 ? pick(opts) : pick(COMMENTS));
+    }
     if (['rose', 'small', 'medium', 'big'].includes(type)) handlers.onGift(present.length ? pick(present) : randomName(), type);
   }
   return {
@@ -62,7 +67,7 @@ export function createSimulator(handlers, config) {
         if (timers[type] > 0) continue;
         // Mỗi khung chỉ phát một lần/loại, tránh dồn sự kiện sau khi đổi tab.
         timers[type] = interval(type);
-        if (type === 'event') trigger(Math.random() < 0.5 ? 'blackout' : 'mom');
+        if (type === 'event') trigger(handlers.randomEvent ? 'random' : Math.random() < 0.5 ? 'blackout' : 'mom');
         else if (type === 'gift') {
           const roll = Math.random();
           trigger(roll < 1 / 8 ? 'big' : roll < 1 / 8 + 1 / 5 ? 'medium' : Math.random() < 0.5 ? 'rose' : 'small');

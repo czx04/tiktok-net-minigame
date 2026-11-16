@@ -33,7 +33,7 @@ export function createLeaderboard(root) {
       name.title = entry.name;
       const coins = document.createElement('span');
       coins.className = 'leaderboard-coins';
-      coins.textContent = `${entry.coins.toLocaleString('vi-VN')} xu`;
+      coins.textContent = `${Math.round(entry.coins).toLocaleString('vi-VN')} xu`;
       row.append(rank, name, coins);
       list.append(row);
     });
@@ -52,6 +52,14 @@ export function createLeaderboard(root) {
       render();
     },
     reset() { donors.clear(); previous = []; render(); },
+    /** Toàn bộ danh sách (để lưu lại khi tải lại trang) */
+    entries() { return [...donors.values()].map(({ name, coins, order }) => ({ name, coins, order })); },
+    restore(list) {
+      donors.clear();
+      for (const e of list ?? []) if (e?.name && Number.isFinite(e.coins)) donors.set(e.name, { name: e.name, coins: e.coins, order: e.order ?? donors.size });
+      previous = top(3).map((e) => e.name);
+      render();
+    },
     top,
   };
 }

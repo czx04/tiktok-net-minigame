@@ -22,7 +22,7 @@ const COUNTER_EXIT = [[-1.6, STAFF_HOME.z], [-1.6, -2.3], [AISLE_X, -2.3]];
 const MOM_SKINS = ['female-c', 'female-e'];
 const BG_DAY = new THREE.Color(0xf3ead9), BG_DARK = new THREE.Color(0x2e2925);
 
-export async function createGame({ stage, shop, hud, sound, leaderboard, hints }) {
+export async function createGame({ stage, shop, hud, sound, leaderboard, hints, saved }) {
   const { scene } = stage;
   const stations = shop.stations;
   const players = new Map();   // name -> player (đang trong quán)
@@ -330,7 +330,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
 
   // ---------- Mất điện ----------
   function blackout() {
-    if (dark.on || mom.on) return;
+    if (eventBusy()) return;
     dark.on = true; dark.got = 0; dark.t = CONFIG.blackout.autoRecoverSeconds;
     document.body.classList.add('is-blackout');
     stations.forEach(drawScreen);
@@ -352,7 +352,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
 
   // ---------- Mẹ đến bắt về ----------
   async function momEvent() {
-    if (mom.on || dark.on) return;
+    if (eventBusy()) return;
     const cands = [...players.values()].filter((p) => p.state === 'sit');
     if (!cands.length) return;
     const v = pick(cands);
@@ -421,6 +421,128 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
     Object.assign(mom, { on: false, char: null, label: null, victim: null, state: '' });
   }
 
+  // ---------- Sự kiện ngẫu nhiên mới ----------
+  const happy = { on: false, t: 0 };
+  const ship = { on: false };
+  const duel = { on: false, a: null, b: null, votes: [0, 0], voters: new Set(), t: 0 };
+  const eventBusy = () => dark.on || mom.on || happy.on || ship.on || duel.on;
+
+  /** Giờ vàng: trong N giây, mỗi tim được nhân thời gian */
+  function happyHour() {
+    if (eventBusy()) return;
+    const ev = CONFIG.events.happyHour;
+    happy.on = true; happy.t = ev.seconds;
+    hud.banner('⭐ GIỜ VÀNG! ⭐', `Mỗi tim = ${CONFIG.secondsPerLike * ev.multiplier} giây trong ${ev.seconds} giây`, 4);
+    hints?.show(`⭐ Giờ vàng: tim x${ev.multiplier} thời gian!`, ev.seconds);
+    hud.feed('Quán', 'bật giờ vàng ⭐');
+    sound.ting();
+    shop.sign.material.emissive?.set(0x553300);
+  }
+  function endHappyHour() {
+    happy.on = false;
+    shop.sign.material.emissive?.set(0x000000);
+    hud.feed('Quán', 'hết giờ vàng');
+  }
+
+  /** Shipper mang trà đá tới, mời ngẫu nhiên vài khách */
+  async function shipper() {
+    if (eventBusy()) return;
+    const ev = CONFIG.events.shipper;
+    ship.on = true;
+    const c = await Character.create(ev.skin);
+    c.position.set(DOOR.x, 0, DOOR.z);
+    scene.add(c.group); actors.push(c);
+    const label = createLabel('Shipper 🛵', 'npc');
+    label.setTimer('', 'hidden');
+    ship.char = c; ship.label = label;
+    const box = await makeItem('tea'); box.position.set(0, 0.42, 0.22); c.group.add(box);
+    hud.feed('Shipper', 'mang trà đá tới quán 🧋');
+    cam(c.group, 'shipper', 5);
+    label.say('Trà đá đây! Quán mình ai đặt nè?', 3);
+    await c.walk([[AISLE_X, DOOR.z], [AISLE_X, -1.7], [-2.2, -2.15]], 1.6);
+    c.faceTo(Math.PI); c.gesture('interact-right', 'idle');
+    await wait(700);
+    c.group.remove(box);
+    const lucky = seated().sort(() => Math.random() - 0.5).slice(0, ev.count);
+    hud.banner('🧋 Trà đá miễn phí!', lucky.length ? `Mời ${lucky.slice(0, 2).map((p) => p.name).join(', ')}${lucky.length > 2 ? ` và ${lucky.length - 2} người nữa` : ''}` : 'Quán mời cả nhà', 4);
+    sound.ting();
+    for (const p of lucky) {
+      if (!isSeated(p)) continue;
+      putOnDesk(p, 'tea', await makeItem('tea'));
+      p.label.say('Trà đá free, ngon! 🧋', 2.5);
+      p.active = time + 3;
+      react(p);
+      await wait(250);
+    }
+    label.say('Chúc cả nhà chơi vui!', 2);
+    await c.walk([[AISLE_X, -1.7], [AISLE_X, DOOR.z], [DOOR.x, DOOR.z]], 1.8);
+    c.dispose(); actors.splice(actors.indexOf(c), 1); label.remove();
+    ship.on = false; ship.char = null; ship.label = null;
+  }
+
+  /** Solo: 2 người, người xem bình luận 1 hoặc 2 để cổ vũ */
+  function duelEvent() {
+    if (eventBusy()) return;
+    const cands = seated().filter((p) => p.state === 'sit').sort(() => Math.random() - 0.5);
+    if (cands.length < 2) return;
+    const [a, b] = cands;
+    Object.assign(duel, { on: true, a, b, votes: [0, 0], voters: new Set(), t: CONFIG.events.duel.seconds });
+    for (const [p, n] of [[a, 1], [b, 2]]) {
+      p.label.el.classList.add('is-focus');
+      p.label.say(`Số ${n}! Cổ vũ mình nha 💪`, 3);
+      p.active = time + CONFIG.events.duel.seconds;
+    }
+    showDuel();
+    hints?.show('⚔️ Bình luận 1 hoặc 2 để cổ vũ!', CONFIG.events.duel.seconds);
+    hud.feed('Quán', `mở solo: ${a.name} vs ${b.name} ⚔️`);
+    sound.ting();
+    cam({ x: (a.st.seat.x + b.st.seat.x) / 2, z: (a.st.seat.z + b.st.seat.z) / 2 }, 'duel', 5);
+  }
+  function showDuel() {
+    hud.banner(`⚔️ SOLO: ${duel.a.name} (1) vs ${duel.b.name} (2)`,
+      `Bình luận 1 hoặc 2 · ${duel.votes[0]} - ${duel.votes[1]} · còn ${Math.ceil(duel.t)}s`, 0);
+  }
+  function castVote(user, text) {
+    const t = String(text ?? '').trim().toLowerCase();
+    let pick = t === '1' ? 0 : t === '2' ? 1 : -1;
+    if (pick < 0 && t === duel.a.name.toLowerCase()) pick = 0;
+    if (pick < 0 && t === duel.b.name.toLowerCase()) pick = 1;
+    if (pick < 0 || duel.voters.has(user)) return;   // mỗi người 1 phiếu
+    duel.voters.add(user);
+    duel.votes[pick]++;
+    (pick === 0 ? duel.a : duel.b).label.popHeart(1);
+    showDuel();
+  }
+  function endDuel() {
+    const { a, b, votes } = duel;
+    duel.on = false;
+    a.label.el.classList.remove('is-focus'); b.label.el.classList.remove('is-focus');
+    if (votes[0] === votes[1]) {
+      hud.banner('⚔️ Hòa!', 'Cả hai cùng được +1 phút', 3.5);
+      for (const p of [a, b]) if (isSeated(p)) { addTime(p, 60); react(p); }
+      return;
+    }
+    const [win, lose] = votes[0] > votes[1] ? [a, b] : [b, a];
+    if (!isSeated(win)) { hud.hideBanner(); return; }
+    addTime(win, CONFIG.events.duel.prizeSeconds);
+    hud.banner(`🏆 ${win.name} thắng solo!`, `${Math.max(...votes)} - ${Math.min(...votes)} · thưởng +${Math.round(CONFIG.events.duel.prizeSeconds / 60)} phút`, 4);
+    win.label.say('Thắng rồi!! 🏆', 3);
+    if (isSeated(lose)) lose.label.say('Thua rồi 😭', 3);
+    react(win);
+    confetti(2);
+    sound.fanfare();
+    cam(win.char.group, 'duel', 3);
+  }
+
+  /** Chọn ngẫu nhiên một sự kiện theo trọng số trong config */
+  function randomEvent() {
+    if (eventBusy()) return;
+    const table = { blackout, mom: momEvent, happyHour, shipper, duel: duelEvent };
+    const w = Object.entries(CONFIG.events.weights).filter(([k, v]) => table[k] && v > 0);
+    let r = Math.random() * w.reduce((s, [, v]) => s + v, 0);
+    for (const [k, v] of w) { if ((r -= v) <= 0) return table[k](); }
+  }
+
   // ---------- Hàm công khai (giả lập / TikTok gọi) ----------
   const handlers = {
     onJoin(user, instant) { return join(user, instant); },
@@ -434,7 +556,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
       if (mom.on && mom.state === 'scold') momSaved(user);
       const p = players.get(user) ?? await join(user);
       if (!p) return;
-      addTime(p, CONFIG.secondsPerLike * n);
+      addTime(p, CONFIG.secondsPerLike * n * (happy.on ? CONFIG.events.happyHour.multiplier : 1));
       p.label.popHeart(n);
       // Đang xếp hàng: được thả tim thì lên trước
       if (p.state === 'wait') { p.boost += n; arrangeQueue(); }
@@ -444,6 +566,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
     },
 
     async onComment(user, text) {
+      if (duel.on) castVote(user, text);
       hud.feed(user, text);
       const p = players.get(user) ?? await join(user);
       p?.label.say(text, 3.5);
@@ -485,6 +608,12 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
 
     blackout,
     momEvent,
+    happyHour,
+    shipper,
+    duelEvent,
+    randomEvent,
+    /** Đang có bình chọn (solo) → các lựa chọn để giả lập bình luận theo */
+    voteOptions: () => (duel.on ? ['1', '2'] : null),
     setAvatar,
     getPlayers() {
       return [...players.values()].filter((p) => p.state !== 'leave').map((p) => p.name);
@@ -600,6 +729,16 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
       }
     }
 
+    // Sự kiện mới đang chạy
+    if (happy.on && (happy.t -= dt) <= 0) endHappyHour();
+    if (duel.on) {
+      duel.t -= dt;
+      if (!isSeated(duel.a) || !isSeated(duel.b)) { duel.on = false; duel.a.label.el.classList.remove('is-focus'); duel.b.label.el.classList.remove('is-focus'); hud.hideBanner(); }
+      else if (duel.t <= 0) endDuel();
+      else if (Math.ceil(duel.t) !== Math.ceil(duel.t + dt)) showDuel();
+    }
+    if (ship.char && ship.label) placeLabel(ship.label, ship.char, 0.95);
+
     // Mẹ đang mắng
     if (mom.on && mom.state === 'scold') {
       mom.t -= dt;
@@ -631,8 +770,15 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints }
     sound.setTyping(dark.on ? 0 : seated().filter((p) => p.state === 'sit').length / stations.length);
   }
 
-  addCoins(CONFIG.startCoins);
+  // Khôi phục tiến độ đã lưu (nếu có), không thì bắt đầu với số xu mặc định
+  if (saved && Number.isFinite(saved.coins)) {
+    goalIdx = Math.min(Math.max(0, saved.goalIdx | 0), CONFIG.goals.length - 1);
+    for (let i = 0; i < goalIdx; i++) if (CONFIG.goals[i].unlock === 'aircon') shop.aircon.visible = true;
+    if (saved.aircon) shop.aircon.visible = true;
+    addCoins(saved.coins);
+  } else addCoins(CONFIG.startCoins);
   refreshCount();
 
-  return { handlers, update, players };
+  const progress = () => ({ coins, goalIdx, aircon: shop.aircon.visible });
+  return { handlers, update, players, progress };
 }

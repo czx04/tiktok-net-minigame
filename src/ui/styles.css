@@ -383,3 +383,8 @@ body.portrait #live-chip { top: calc(13.5vh + 24vw); }
   .hud-hints { transition: none; }
   .hud-hints.is-leaving, .hud-hints.is-entering { animation: none; }
 }
+/* Khung ngang: dải hướng dẫn ở khoảng trống bên trái (dưới nút loa) — không đè quầy, không đè feed */
+body:not(.portrait) .hud-hints {
+  top: calc(var(--top-height) + 14vh); left: var(--ui-gap); transform: none;
+  max-width: 24vw; white-space: normal; border-radius: 2vh;
+}

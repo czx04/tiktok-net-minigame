@@ -121,7 +121,12 @@ export class Character {
   }
 
   dispose() {
+    clearTimeout(this._gT);
     this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.model);
+    // Mỗi bộ xương có texture xương riêng trên GPU → phải giải phóng, không thì live dài sẽ rò bộ nhớ.
+    // (Geometry/material/texture màu dùng chung giữa các bản clone nên KHÔNG dispose.)
+    this.model.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.dispose(); });
     this.group.removeFromParent();
   }
 }

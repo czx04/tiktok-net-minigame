@@ -61,6 +61,13 @@ export const CONFIG = {
   randomEventMin: 30,        // giây
   randomEventMax: 60,
   blackout: { likesNeeded: 30, autoRecoverSeconds: 14 },
+  events: {
+    // Tỉ lệ chọn mỗi sự kiện khi tới lượt (0 = tắt)
+    weights: { blackout: 2, mom: 2, happyHour: 2, shipper: 1.5, duel: 2 },
+    happyHour: { seconds: 25, multiplier: 2 },          // giờ vàng: tim x2 thời gian
+    shipper: { count: 4, skin: 'male-e' },              // shipper mời trà đá ngẫu nhiên N khách
+    duel: { seconds: 20, prizeSeconds: 120 },           // solo: bình luận 1/2 để cổ vũ, người thắng +2 phút
+  },
   mom: { scoldSeconds: 9 },
 
   // ---------- Giả lập ----------
@@ -70,6 +77,14 @@ export const CONFIG = {
     likeEvery: [0.6, 2.2],
     commentEvery: [2.5, 6],
     giftEvery: [10, 22],
+  },
+
+  // ---------- Lưu tiến độ khi tải lại trang ----------
+  // Lưu xu mục tiêu + bảng xếp hạng. Mở trang với ?reset để xóa và bắt đầu phiên mới.
+  persist: {
+    enabled: true,
+    everySeconds: 5,
+    maxAgeHours: 8,          // phiên cũ hơn bấy nhiêu giờ thì tự bắt đầu lại (live hôm sau)
   },
 
   // ---------- Kết nối TikTok Live (giai đoạn 3) ----------
@@ -93,11 +108,11 @@ export const CONFIG = {
     minShotSeconds: 1.5,     // cảnh cùng mức ưu tiên phải giữ ít nhất bấy nhiêu giây
     maxQueueWait: 6,         // cảnh chờ quá lâu thì bỏ
     // Ưu tiên lia cam (cao hơn được cắt ngang cảnh thấp hơn). 0 = không lia.
-    priority: { mom: 100, big: 90, vip: 80, locked: 55, join: 40, gift: 35, comment: 0 },
+    priority: { mom: 100, big: 90, vip: 80, duel: 70, shipper: 60, locked: 55, join: 40, gift: 35, comment: 0 },
     seconds:  { join: 3.5, gift: 2.5, locked: 2.5 },
     joinCooldown: 6,         // tối thiểu bao nhiêu giây giữa 2 lần lia theo khách mới (live đông thì không bị giật liên tục)
     // Khung dọc: vùng đặt quán (tỉ lệ khung hình) — né thanh trên, bình luận và nút quà của TikTok
-    portraitSafe: { left: 0.0, right: 0.9, top: 0.2, bottom: 0.7 },
+    portraitSafe: { left: 0.0, right: 0.9, top: 0.245, bottom: 0.72 },
   },
   ui: {
     declutterLabels: true,   // nhãn bị chồng lên nhau thì làm mờ nhãn ít quan trọng

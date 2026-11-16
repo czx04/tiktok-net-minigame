@@ -8,7 +8,8 @@ export function createSimBar(root, { onAction, autoRun = true }) {
     ['comment', '💬', 'Bình luận'], ['rose', '🌹', 'Hoa hồng'],
     ['small', '🥤', 'Quà nhỏ'], ['medium', '👑', 'Quà vừa'],
     ['big', '🎁', 'Quà to'], ['blackout', '💡', 'Mất điện'],
-    ['mom', '👩', 'Mẹ đến'], ['auto', '▶', 'Tự chạy'],
+    ['mom', '👩', 'Mẹ đến'], ['happyHour', '⭐', 'Giờ vàng'],
+    ['shipper', '🛵', 'Shipper'], ['duel', '⚔️', 'Solo'], ['auto', '▶', 'Tự chạy'],
   ];
   let autoButton;
   const setAuto = value => {

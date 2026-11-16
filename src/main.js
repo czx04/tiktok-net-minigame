@@ -14,6 +14,7 @@ import { connectLive } from './live/tiktok.js';
 import { mapGift } from './live/gifts.js';
 import { showSafeZones } from './ui/safeZones.js';
 import { createHints } from './ui/hints.js';
+import { loadSession, saveSession } from './game/persist.js';
 
 const loadingEl = document.getElementById('loading');
 
@@ -39,7 +40,14 @@ async function main() {
     items: CONFIG.hints.enabled ? CONFIG.hints.items.map((t) => t.replace('{tim}', CONFIG.secondsPerLike)) : [],
     everySeconds: CONFIG.hints.everySeconds,
   });
-  const game = await createGame({ stage, shop, hud, sound, leaderboard, hints });
+  const saved = loadSession();
+  if (saved) leaderboard.restore(saved.leaders);
+  const game = await createGame({ stage, shop, hud, sound, leaderboard, hints, saved });
+  // Lưu tiến độ mỗi vài giây và khi đóng / tải lại trang
+  const persist = () => saveSession({ ...game.progress(), leaders: leaderboard.entries() });
+  setInterval(persist, CONFIG.persist.everySeconds * 1000);
+  addEventListener('pagehide', persist);
+  addEventListener('beforeunload', persist);
 
   const sim = createSimulator(game.handlers, CONFIG);
   createSimBar(document.getElementById('simbar'), {
