@@ -61,7 +61,9 @@ export function createHud(root) {
       track.setAttribute('aria-label', goalText.textContent);
       track.setAttribute('aria-valuenow', String(Math.round(percent)));
     },
-    setCount(used, total) { count.textContent = `${used}/${total} máy`; },
+    setCount(used, total, waiting = 0) {
+      count.textContent = waiting > 0 ? `${used}/${total} máy · ${waiting} chờ` : `${used}/${total} máy`;
+    },
     flash(color) {
       clearTimeout(flashTimeout);
       flash.style.backgroundColor = color || 'var(--accent)';

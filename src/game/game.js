@@ -22,13 +22,14 @@ const COUNTER_EXIT = [[-1.6, STAFF_HOME.z], [-1.6, -2.3], [AISLE_X, -2.3]];
 const MOM_SKINS = ['female-c', 'female-e'];
 const BG_DAY = new THREE.Color(0xf3ead9), BG_DARK = new THREE.Color(0x2e2925);
 
-export async function createGame({ stage, shop, hud, sound, leaderboard }) {
+export async function createGame({ stage, shop, hud, sound, leaderboard, hints }) {
   const { scene } = stage;
   const stations = shop.stations;
   const players = new Map();   // name -> player (đang trong quán)
+  const queue = [];            // khách đang xếp hàng chờ máy (đầu hàng ở vị trí 0)
   const visible = new Set();   // mọi khách còn trên màn hình, kể cả đang đi ra
   const actors = [];           // mọi Character cần update
-  let coins = 0, goalIdx = 0, time = 0, lastFullNotice = -99, lastJoinShot = -99;
+  let coins = 0, goalIdx = 0, time = 0, lastFullNotice = -99, lastJoinShot = -99, lastQueueHint = -99;
   const cam = (target, kind, seconds) => {
     const pr = CONFIG.camera.priority[kind] ?? 0;
     if (pr > 0) stage.shot(target, { seconds: seconds ?? CONFIG.camera.seconds[kind] ?? CONFIG.focusSeconds, priority: pr, kind });
@@ -49,7 +50,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
 
   // ---------- Tiện ích ----------
   const seated = () => [...players.values()].filter((p) => p.state === 'sit' || p.state === 'locked');
-  function refreshCount() { hud.setCount(stations.filter((s) => s.player).length, stations.length); }
+  function refreshCount() { hud.setCount(stations.filter((s) => s.player).length, stations.length, queue.length); }
 
   function addCoins(n) {
     coins += n;
@@ -93,17 +94,19 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
   async function join(name, instant = false) {
     if (players.has(name)) return players.get(name);
     const free = stations.filter((s) => !s.player);
-    if (!free.length) {
-      // Quán kín máy: báo tối đa 1 lần / 10 giây để feed không bị spam
-      if (time - lastFullNotice > 10) { hud.feed(name, 'đang chờ máy trống'); lastFullNotice = time; }
+    const mustWait = !free.length || queue.length > 0;   // đã có người xếp hàng thì không chen ngang
+    if (mustWait && queue.length >= CONFIG.queue.max) {
+      // Kín cả máy lẫn hàng chờ: báo tối đa 1 lần / 10 giây để feed không bị spam
+      if (time - lastFullNotice > 10) { hud.feed(name, 'tới nhưng quán kín chỗ, lát quay lại nhé'); lastFullNotice = time; }
       return null;
     }
-    const st = pick(free);
+    const st = mustWait ? null : pick(free);
     const p = {
-      name, st, state: 'walk', time: CONFIG.startSeconds, vip: false, lockT: 0,
+      name, st, state: mustWait ? 'wait' : 'walk', time: CONFIG.startSeconds, vip: false, lockT: 0,
       momHold: false, eat: 0, look: 0, active: 0, char: null, label: createLabel(name, 'player'),
+      pending: [], pendingVip: null, waitT: 0, boost: 0, spotIdx: -1,
     };
-    st.player = p;
+    if (st) st.player = p; else queue.push(p);
     players.set(name, p);
     visible.add(p);
     refreshCount();
@@ -114,9 +117,16 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     scene.add(p.char.group);
     actors.push(p.char);
 
-    if (instant) {
+    if (instant && p.st) {
       p.time = rnd(25, 120);
       seat(p);
+    } else if (p.state === 'wait') {
+      // Kín máy: đi vào xếp hàng dọc tường trái
+      p.char.position.set(DOOR.x, 0, DOOR.z);
+      hud.feed(name, 'vào xếp hàng chờ máy');
+      if (time - lastQueueHint > 30) { lastQueueHint = time; hints?.show('🚶 Hết máy! Thả tim hoặc tặng quà để lên đầu hàng', 6); }
+      p.label.say(pick(['Hết máy rồi à?', 'Cho em xếp hàng với', 'Chờ tí vậy', 'Thả tim cho em lên trước!']), 3);
+      arrangeQueue();
     } else {
       p.char.position.set(DOOR.x, 0, DOOR.z);
       hud.feed(name, 'vừa vào quán');
@@ -137,7 +147,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
   const avatars = new Map();   // tên -> HTMLImageElement đã tải xong
   function applyAvatar(p) {
     const img = avatars.get(p.name);
-    if (img && p.st.player === p) { p.st.screen.setAvatar(img); drawScreen(p.st); }
+    if (img && p.st && p.st.player === p) { p.st.screen.setAvatar(img); drawScreen(p.st); }
   }
   function setAvatar(user, src) {
     if (!src || avatars.has(user)) return;
@@ -162,27 +172,72 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     char.faceTo(st.faceRot);
     char.setLoop('sit');
     drawScreen(st);
+    // Món đã gọi / ghế VIP được tặng lúc còn đang đi hoặc đang xếp hàng
+    for (const kind of p.pending.splice(0)) order(p, kind);
+    if (p.pendingVip) { const g = p.pendingVip; p.pendingVip = null; makeVip(p, p.name, g); }
+  }
+
+  // ---------- Hàng chờ khi quán kín máy ----------
+  const queueSpot = (i) => [CONFIG.queue.x, CONFIG.queue.headZ + i * CONFIG.queue.gap];
+
+  /** Xếp lại hàng: ai được tim/quà nhiều hơn đứng trước; mỗi người đi tới ô của mình. */
+  function arrangeQueue() {
+    queue.sort((a, b) => b.boost - a.boost);   // sort ổn định: bằng điểm thì ai tới trước đứng trước
+    queue.forEach((p, i) => {
+      p.label.setTimer(`chờ #${i + 1}`, 'normal');
+      if (p.spotIdx === i || !p.char) return;
+      const first = p.spotIdx === -1;
+      p.spotIdx = i;
+      const [x, z] = queueSpot(i);
+      const path = first ? [[AISLE_X, DOOR.z], [AISLE_X, z], [x, z]] : [[x, z]];
+      p.char.walk(path, CONFIG.walkSpeed).then(() => { if (p.state === 'wait') p.char.faceTo(Math.PI / 2); });
+    });
+    refreshCount();
+  }
+
+  /** Có máy trống → người đầu hàng vào ngồi. */
+  function seatNext() {
+    while (queue.length) {
+      const free = stations.filter((st) => !st.player);
+      if (!free.length) break;
+      const p = queue.shift();
+      if (!p.char) { queue.unshift(p); break; }   // model chưa tải xong, thử lại ở khung sau
+      const st = pick(free);
+      p.st = st; st.player = p; p.state = 'walk'; p.spotIdx = -1;
+      p.label.setTimer(fmt(p.time), 'normal');
+      p.label.say('Tới lượt mình rồi! 🎉', 2.5);
+      p.active = time + 2;
+      hud.feed(p.name, 'hết phải chờ, vào máy');
+      const pos = p.char.position;
+      p.char.walk([[AISLE_X, pos.z], [AISLE_X, st.lineZ], [st.seat.x, st.lineZ], [st.seat.x, st.seat.z]], CONFIG.walkSpeed)
+        .then(() => { if (p.state === 'walk' && st.player === p) seat(p); });
+    }
+    arrangeQueue();
   }
 
   async function leave(p, why) {
     if (p.state === 'leave' || p.state === 'gone') return;
     const { st } = p;
-    const wasWalking = p.state === 'walk';
+    const wasWalking = p.state === 'walk' || p.state === 'wait';
+    const qi = queue.indexOf(p);
+    if (qi >= 0) queue.splice(qi, 1);
     p.state = 'leave';
     p.momHold = false;
-    st.player = null;
-    st.screen.setAvatar(null);
-    if (p.vip) st.setVip(false);
     players.delete(p.name);
-    drawScreen(st);
-    refreshCount();
+    if (st) {
+      st.player = null;
+      st.screen.setAvatar(null);
+      if (p.vip) st.setVip(false);
+      drawScreen(st);
+    }
+    seatNext();   // máy vừa trống → người đầu hàng vào thay (đồng thời dồn hàng)
     p.label.setTimer('', 'hidden');
     p.label.el.classList.remove('is-locked', 'is-mom-target');
     if (why) hud.feed(p.name, why);
     if (!p.char) { p.state = 'gone'; visible.delete(p); p.label.remove(); return; }
     const pos = p.char.position;
-    const route = wasWalking ? [] : [[st.seat.x, st.lineZ]];
-    await p.char.walk([...route, [AISLE_X, wasWalking ? pos.z : st.lineZ], [AISLE_X, DOOR.z], [DOOR.x, DOOR.z]], CONFIG.walkSpeed);
+    const route = wasWalking || !st ? [] : [[st.seat.x, st.lineZ]];
+    await p.char.walk([...route, [AISLE_X, wasWalking || !st ? pos.z : st.lineZ], [AISLE_X, DOOR.z], [DOOR.x, DOOR.z]], CONFIG.walkSpeed);
     p.state = 'gone';
     visible.delete(p);
     p.char.dispose();
@@ -192,6 +247,8 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
 
   // ---------- Nhân viên giao đồ (hàng đợi) ----------
   function order(p, kind) {
+    // Chưa ngồi vào máy (đang đi / đang xếp hàng) → ghi nợ, ngồi xuống mới gọi
+    if (!isSeated(p)) { p.pending.push(kind); return; }
     staff.queue.push({ p, kind });
     if (!staff.busy) runStaff();
   }
@@ -379,6 +436,8 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       if (!p) return;
       addTime(p, CONFIG.secondsPerLike * n);
       p.label.popHeart(n);
+      // Đang xếp hàng: được thả tim thì lên trước
+      if (p.state === 'wait') { p.boost += n; arrangeQueue(); }
       sound.heart();
       p.look = Math.max(p.look, 1.2);
       p.active = time;
@@ -402,6 +461,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       addCoins(value);
       leaderboard.add(user, value);
       addTime(p, gift.seconds);
+      if (p.state === 'wait') { p.boost += 1000 + value; arrangeQueue(); p.label.say('Tặng quà nên được lên đầu hàng 😎', 3); }
       p.active = time + 4;
       sound.ting();
       if (gift.item === 'noodle') {
@@ -415,11 +475,11 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
         order(p, 'sting');
         cam(p.char.group, 'gift');
       } else if (gift.item === 'vip') {
-        if (p.state === 'walk') await waitSeated(p);
+        // Chưa ngồi vào máy thì ghi nhận, ngồi xuống sẽ lên ghế VIP
         if (isSeated(p)) makeVip(p, user, gift);
+        else { p.pendingVip = gift; hud.feed(user, `tặng ${gift.label}, sẽ lên ghế VIP khi có máy 👑`); }
       } else if (gift.item === 'all') {
-        if (p.state === 'walk') await waitSeated(p);
-        if (isSeated(p)) treatEveryone(p, user, gift);
+        treatEveryone(p, user, gift);
       }
     },
 
@@ -430,10 +490,6 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       return [...players.values()].filter((p) => p.state !== 'leave').map((p) => p.name);
     },
   };
-
-  async function waitSeated(p) {
-    while (p.state === 'walk') await wait(200);
-  }
 
   // ---------- Vòng lặp ----------
   const tmp = new THREE.Vector3();
@@ -495,6 +551,13 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     for (const a of actors) a.update(dt);
     updateLights(dt);
 
+    // Hàng chờ: chờ quá lâu thì bỏ về; có máy trống thì gọi người đầu hàng
+    for (const p of [...queue]) {
+      p.waitT += dt;
+      if (p.waitT > CONFIG.queue.maxWaitSeconds) leave(p, 'chờ lâu quá nên về');
+    }
+    if (queue.length && stations.some((st) => !st.player)) seatNext();
+
     const frozen = dark.on;   // mất điện: đồng hồ dừng
     for (const p of [...players.values()]) {
       if (p.state === 'sit') {
@@ -510,6 +573,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
           sound.alarm();
           p.active = time + 3;
           cam(p.char.group, 'locked');
+          hints?.show(`⏰ ${p.name} hết giờ — thả tim cứu bạn ấy!`, 5);
         }
       } else if (p.state === 'locked') {
         if (!frozen && !p.momHold) p.lockT -= dt;

@@ -13,6 +13,7 @@ import { createLeaderboard } from './ui/leaderboard.js';
 import { connectLive } from './live/tiktok.js';
 import { mapGift } from './live/gifts.js';
 import { showSafeZones } from './ui/safeZones.js';
+import { createHints } from './ui/hints.js';
 
 const loadingEl = document.getElementById('loading');
 
@@ -34,7 +35,11 @@ async function main() {
   const leaderboard = createLeaderboard(document.getElementById('hud'));
   const sound = createSound();
   createMuteButton(document.body, sound);
-  const game = await createGame({ stage, shop, hud, sound, leaderboard });
+  const hints = createHints(document.getElementById('hud'), {
+    items: CONFIG.hints.enabled ? CONFIG.hints.items.map((t) => t.replace('{tim}', CONFIG.secondsPerLike)) : [],
+    everySeconds: CONFIG.hints.everySeconds,
+  });
+  const game = await createGame({ stage, shop, hud, sound, leaderboard, hints });
 
   const sim = createSimulator(game.handlers, CONFIG);
   createSimBar(document.getElementById('simbar'), {

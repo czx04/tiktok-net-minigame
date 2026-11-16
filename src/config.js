@@ -22,6 +22,30 @@ export const CONFIG = {
     big:   { label: 'Quà to',   item: 'all',    seconds: 120, coins: 500, tiktokNames: ['Galaxy', 'Lion', 'Universe', 'Interstellar'], minDiamonds: 500 },
   },
 
+  // ---------- Dải hướng dẫn cách chơi (hiện lần lượt cho người xem) ----------
+  hints: {
+    enabled: true,
+    everySeconds: 5,
+    // {tim} tự thay bằng số giây mỗi tim ở trên
+    items: [
+      '❤ Thả tim = +{tim} giây chơi',
+      '💬 Bình luận = nhân vật của bạn nói',
+      '🌹 Hoa hồng = mì tôm trứng',
+      '🥤 Quà nhỏ = Sting mát lạnh',
+      '👑 Quà vừa = lên ghế VIP',
+      '🎉 Quà to = bao cả quán',
+      '⏰ Hết giờ? Thả tim để mở máy',
+      '🚶 Hết máy? Thả tim để lên đầu hàng',
+    ],
+  },
+
+  // ---------- Hàng chờ khi quán kín 20 máy ----------
+  queue: {
+    max: 8,                  // tối đa bao nhiêu người đứng chờ (thêm nữa thì không vào được)
+    maxWaitSeconds: 150,     // chờ quá lâu thì bỏ về
+    x: -3.45, headZ: -1.9, gap: 0.4,   // vị trí hàng: dọc tường trái, đầu hàng gần quầy
+  },
+
   // ---------- Đồ ăn uống trên bàn ----------
   itemOnDeskSeconds: 28,     // món ăn nằm trên bàn bao lâu thì dọn
 

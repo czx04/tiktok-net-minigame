@@ -330,3 +330,56 @@ body:not(.portrait) #live-chip {
   right: var(--ui-gap); bottom: calc(var(--simbar-height, 0px) + var(--ui-gap));
 }
 body:not(.portrait).sim-hidden #live-chip { bottom: var(--ui-gap); }
+
+/* Hướng dẫn tương tác cho người xem live. */
+.hud-hints {
+  position: fixed;
+  top: calc(var(--top-height) + var(--ui-gap) * 2);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - var(--ui-gap) * 2);
+  padding: .7vh 1.8vh;
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: max(13px, 2.2vh);
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transition: opacity .16s ease, background-color .16s ease, color .16s ease;
+}
+.hud-hints.is-urgent { background: var(--accent); color: white; }
+.hud-hints.is-leaving { animation: hints-out .16s ease-in both; }
+.hud-hints.is-entering { animation: hints-in .2s ease-out both; }
+@keyframes hints-out {
+  from { translate: 0 0; opacity: 1; }
+  to { translate: 0 -.45em; opacity: 0; }
+}
+@keyframes hints-in {
+  from { translate: 0 .45em; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+/* Both sibling orders work, including when hints are created before the HUD. */
+.hud-banner.is-visible ~ .hud-hints,
+#hud:has(> .hud-banner.is-visible) > .hud-hints {
+  opacity: .12;
+  animation: none;
+}
+body.portrait .hud-hints {
+  left: 4vw;
+  top: calc(13.5vh + 11vw);
+  transform: none;
+  max-width: 64vw;
+  font-size: 3.4vw;
+  padding: 1.2vw 2.6vw;
+}
+body.portrait #live-chip { top: calc(13.5vh + 24vw); }
+@media (prefers-reduced-motion: reduce) {
+  .hud-hints { transition: none; }
+  .hud-hints.is-leaving, .hud-hints.is-entering { animation: none; }
+}
