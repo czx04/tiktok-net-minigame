@@ -1,0 +1,106 @@
+// Một nhân vật chibi: model + animation + đi theo đường.
+import * as THREE from 'three';
+import { makeCharacterModel } from '../scene/assets.js';
+
+export class Character {
+  static async create(skin, { scale = 1 } = {}) {
+    const m = await makeCharacterModel(skin);
+    return new Character(m, scale);
+  }
+
+  constructor({ root, mixer, actions }, scale) {
+    this.group = new THREE.Group();
+    this.model = root;
+    this.model.scale.setScalar(scale);
+    this.group.add(this.model);
+    this.mixer = mixer;
+    this.actions = actions;
+    this.current = null;
+    this.path = [];
+    this.speed = 1.3;
+    this.onArrive = null;
+    this.bob = 0;          // nảy lên khi vui
+    this.baseY = 0;        // độ cao khi ngồi
+    this.mixer.timeScale = 1;
+    this.play('idle', 0);
+  }
+
+  get position() { return this.group.position; }
+
+  play(name, fade = 0.25, { once = false } = {}) {
+    const next = this.actions[name];
+    if (!next || next === this.current) return next;
+    next.reset();
+    next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+    next.clampWhenFinished = once;
+    next.enabled = true;
+    next.setEffectiveWeight(1);
+    if (this.current && fade > 0) next.crossFadeFrom(this.current, fade, false);
+    else if (this.current) this.current.stop();
+    next.play();
+    this.current = next;
+    return next;
+  }
+
+  /** Phát một động tác ngắn rồi quay về animation nền. */
+  gesture(name, back) {
+    const a = this.play(name, 0.15, { once: true });
+    if (!a) return;
+    const dur = a.getClip().duration * 1000;
+    clearTimeout(this._gT);
+    this._gT = setTimeout(() => { this.play(back ?? this.loopName ?? 'idle', 0.25); }, Math.max(400, dur - 150));
+  }
+
+  setLoop(name) { this.loopName = name; this.play(name); }
+
+  /** Đi theo danh sách điểm [x,z]; trả về Promise khi tới nơi. */
+  walk(points, speed = this.speed) {
+    this.path = points.map(([x, z]) => new THREE.Vector3(x, 0, z));
+    this.speed = speed;
+    this.baseY = 0;
+    this.setLoop('walk');
+    return new Promise((res) => { this.onArrive = res; });
+  }
+
+  faceTo(rotY) { this.targetRot = rotY; }
+
+  hop() { this.bob = 0.45; }
+
+  update(dt) {
+    this.mixer.update(dt);
+    const p = this.group.position;
+    if (this.path.length) {
+      const t = this.path[0];
+      const dx = t.x - p.x, dz = t.z - p.z;
+      const d = Math.hypot(dx, dz);
+      const step = this.speed * dt;
+      if (d <= step) {
+        p.x = t.x; p.z = t.z;
+        this.path.shift();
+        if (!this.path.length) {
+          this.setLoop('idle');
+          const cb = this.onArrive; this.onArrive = null; cb?.();
+        }
+      } else {
+        p.x += (dx / d) * step; p.z += (dz / d) * step;
+        this.targetRot = Math.atan2(dx, dz);
+      }
+    }
+    if (this.targetRot !== undefined) {
+      let diff = this.targetRot - this.group.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      this.group.rotation.y += diff * Math.min(1, dt * 12);
+    }
+    let y = this.baseY;
+    if (this.bob > 0) {
+      this.bob -= dt;
+      y += Math.sin((1 - this.bob / 0.45) * Math.PI) * 0.12;
+    }
+    p.y = y;
+  }
+
+  dispose() {
+    this.mixer.stopAllAction();
+    this.group.removeFromParent();
+  }
+}
