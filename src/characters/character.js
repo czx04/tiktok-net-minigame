@@ -22,7 +22,27 @@ export class Character {
     this.bob = 0;          // nảy lên khi vui
     this.baseY = 0;        // độ cao khi ngồi
     this.mixer.timeScale = 1;
+    // Xương đầu/thân không bị animation `sit` điều khiển → dùng để gục đầu, ăn mì, ngó nghiêng
+    this.head = root.getObjectByName('head');
+    this.torso = root.getObjectByName('torso');
+    this.lean = { torso: 0, head: 0, turn: 0 };
     this.play('idle', 0);
+  }
+
+  /** Đặt tư thế phụ khi đang ngồi (radian). Gọi mỗi khung sau update(). */
+  setLean(torso, head, turn = 0, dt = 1) {
+    const k = Math.min(1, dt * 8);
+    this.lean.torso += (torso - this.lean.torso) * k;
+    this.lean.head += (head - this.lean.head) * k;
+    this.lean.turn += (turn - this.lean.turn) * k;
+    if (this.torso) this.torso.rotation.x = this.lean.torso;
+    if (this.head) { this.head.rotation.x = this.lean.head; this.head.rotation.y = this.lean.turn; }
+  }
+
+  resetLean() {
+    this.lean.torso = this.lean.head = this.lean.turn = 0;
+    if (this.torso) this.torso.rotation.set(0, 0, 0);
+    if (this.head) this.head.rotation.set(0, 0, 0);
   }
 
   get position() { return this.group.position; }
@@ -58,6 +78,7 @@ export class Character {
     this.path = points.map(([x, z]) => new THREE.Vector3(x, 0, z));
     this.speed = speed;
     this.baseY = 0;
+    this.resetLean();
     this.setLoop('walk');
     return new Promise((res) => { this.onArrive = res; });
   }

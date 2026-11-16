@@ -1,0 +1,14 @@
+{
+  "name": "quan-net-live-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.10",
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.23.0"
+  }
+}

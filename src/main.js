@@ -7,6 +7,9 @@ import { createGame } from './game/game.js';
 import { createHud } from './ui/hud.js';
 import { createSimBar } from './ui/simBar.js';
 import { createSimulator } from './live/simulator.js';
+import { createSound } from './ui/sound.js';
+import { createMuteButton } from './ui/muteButton.js';
+import { createLeaderboard } from './ui/leaderboard.js';
 
 const loadingEl = document.getElementById('loading');
 
@@ -25,7 +28,10 @@ async function main() {
   await preloadAll((k) => { loadingEl.textContent = `Đang mở quán… ${Math.round(k * 100)}%`; });
   const shop = await buildShop(stage.scene);
   const hud = createHud(document.getElementById('hud'));
-  const game = await createGame({ stage, shop, hud });
+  const leaderboard = createLeaderboard(document.getElementById('hud'));
+  const sound = createSound();
+  createMuteButton(document.body, sound);
+  const game = await createGame({ stage, shop, hud, sound, leaderboard });
 
   const sim = createSimulator(game.handlers, CONFIG);
   createSimBar(document.getElementById('simbar'), {
