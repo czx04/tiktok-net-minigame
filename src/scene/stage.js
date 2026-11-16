@@ -40,14 +40,13 @@ export function createStage(canvas) {
       box: [[-4.1, 3.0], [0, 1.35], [-3.6, 3.6]] },
     // Khung dọc (TikTok): phía trên/dưới vốn bị giao diện TikTok che, nên ưu tiên phóng to 20 máy,
     // chấp nhận cắt bớt tường hai bên.
-    portrait: { dir: new THREE.Vector3(0.62, 1.55, 1.25).normalize(), center: new THREE.Vector3(-0.35, 0.3, -0.1),
+    portrait: { dir: new THREE.Vector3(0.62, 1.55, 1.25).normalize(), center: new THREE.Vector3(-0.55, 0.3, -0.75),
       box: [[-2.95, 2.45], [0, 0.6], [-3.0, 2.85]] },
   };
   const camDir = new THREE.Vector3();
   const center = new THREE.Vector3();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
   const look = new THREE.Vector3();
-  const focus = { target: new THREE.Vector3(), t: 0 };
   let W = 1, H = 1, portrait = false;
 
   function fit() {
@@ -55,10 +54,12 @@ export function createStage(canvas) {
     renderer.setSize(W, H, false);
     const aspect = W / H;
     portrait = aspect < 0.85;
+    document.body.classList.toggle('portrait', portrait);
     const view = portrait ? VIEWS.portrait : VIEWS.landscape;
     camDir.copy(view.dir);
     center.copy(view.center);
     look.copy(center);
+    camera.zoom = portrait ? CONFIG.camera.portraitBaseZoom : 1;
     camera.position.copy(center).addScaledVector(camDir, 30);
     camera.lookAt(center);
     camera.updateMatrixWorld();
@@ -71,28 +72,68 @@ export function createStage(canvas) {
       mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y));
     }
     mx += 0.1; my += 0.1;
-    if (mx / my > aspect) my = mx / aspect; else mx = my * aspect;
-    camera.left = -mx; camera.right = mx; camera.top = my; camera.bottom = -my;
+    // Vùng đặt quán trên khung hình (tỉ lệ 0..1). Khung dọc: né thanh trên, bình luận và nút quà của TikTok.
+    const r = portrait ? CONFIG.camera.portraitSafe : { left: 0, right: 1, top: 0, bottom: 1 };
+    const rw = (r.right - r.left) * W, rh = (r.bottom - r.top) * H;
+    const unitsPerPx = Math.max((2 * mx) / rw, (2 * my) / rh);
+    const px = (r.left + r.right) / 2 * W, py = (r.top + r.bottom) / 2 * H;   // tâm vùng (pixel)
+    camera.left = -px * unitsPerPx; camera.right = (W - px) * unitsPerPx;
+    camera.top = py * unitsPerPx; camera.bottom = -(H - py) * unitsPerPx;
     camera.updateProjectionMatrix();
   }
   fit();
   addEventListener('resize', fit);
 
-  function focusOn(pos, seconds = CONFIG.focusSeconds) {
-    focus.target.set(pos.x, 0.5, pos.z);
-    focus.t = seconds;
+  // ---------- Đạo diễn camera: hàng đợi cảnh quay theo độ ưu tiên ----------
+  // target: Vector3 hoặc Object3D (đi theo khi nhân vật đang di chuyển)
+  const shotTarget = new THREE.Vector3();
+  let current = null;          // { target, t, priority, age, kind }
+  const queue = [];
+  let clock = 0;
+
+  function posOf(target, out) {
+    const p = target.isObject3D ? target.position : target;
+    return out.set(p.x, 0.5, p.z);
+  }
+
+  function shot(target, { seconds = CONFIG.focusSeconds, priority = 50, kind = '' } = {}) {
+    const s = { target, t: seconds, priority, age: 0, kind, queuedAt: clock };
+    if (!current || priority > current.priority ||
+        (priority === current.priority && current.age > CONFIG.camera.minShotSeconds)) {
+      current = s;
+    } else {
+      queue.push(s);
+      queue.sort((a, b) => b.priority - a.priority);
+      if (queue.length > 4) queue.length = 4;   // không dồn quá nhiều cảnh cũ
+    }
+  }
+
+  function focusOn(pos, seconds = CONFIG.focusSeconds, priority = 60) {
+    shot({ x: pos.x, z: pos.z }, { seconds, priority });
   }
 
   function update(dt) {
-    let wantZoom = 1;
-    if (focus.t > 0) {
-      focus.t -= dt;
-      look.lerp(focus.target, Math.min(1, dt * 3));
-      wantZoom = CONFIG.focusZoom;
-    } else {
-      look.lerp(center, Math.min(1, dt * 2.5));
+    clock += dt;
+    let wantZoom = portrait ? CONFIG.camera.portraitBaseZoom : 1;
+    if (current) {
+      current.t -= dt; current.age += dt;
+      if (current.t <= 0) {
+        // Cảnh tiếp theo: ưu tiên cao nhất, bỏ những cảnh chờ quá lâu
+        current = null;
+        while (queue.length) {
+          const n = queue.shift();
+          if (clock - n.queuedAt < CONFIG.camera.maxQueueWait) { current = n; break; }
+        }
+      }
     }
-    camera.zoom += (wantZoom - camera.zoom) * Math.min(1, dt * 3);
+    if (current) {
+      posOf(current.target, shotTarget);
+      look.lerp(shotTarget, Math.min(1, dt * 3));
+      wantZoom = portrait ? CONFIG.camera.portraitZoom : CONFIG.focusZoom;
+    } else {
+      look.lerp(center, Math.min(1, dt * 2.2));
+    }
+    camera.zoom += (wantZoom - camera.zoom) * Math.min(1, dt * 2.6);
     camera.position.copy(look).addScaledVector(camDir, 30);
     camera.lookAt(look);
     camera.updateProjectionMatrix();
@@ -109,10 +150,12 @@ export function createStage(canvas) {
   }
 
   return {
-    renderer, scene, camera, lights, focusOn, update, toScreen,
+    renderer, scene, camera, lights, focusOn, shot, update, toScreen,
+    get portrait() { return portrait; },
+    get busyPriority() { return current ? current.priority : 0; },
     render: () => renderer.render(scene, camera),
     get zoom() { return camera.zoom; },
-    /** Tỉ lệ nhãn HTML: to lên khi zoom, nhỏ lại ở khung dọc để đỡ chồng nhau. */
-    get labelScale() { return Math.min(1.5, Math.sqrt(camera.zoom)) * (portrait ? 0.78 : 1); },
+    /** Tỉ lệ nhãn HTML: to lên khi camera zoom (cỡ gốc do CSS tính theo khung hình). */
+    get labelScale() { return Math.min(1.4, Math.sqrt(camera.zoom)); },
   };
 }

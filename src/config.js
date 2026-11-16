@@ -61,6 +61,22 @@ export const CONFIG = {
   // ---------- Di chuyển / camera ----------
   walkSpeed: 1.3,            // đơn vị/giây
   staffSpeed: 1.6,
-  focusZoom: 1.8,            // camera zoom khi tập trung vào ai đó
+  focusZoom: 1.8,            // camera zoom khi tập trung vào ai đó (khung ngang)
   focusSeconds: 4,
+  camera: {
+    portraitZoom: 2.1,
+    portraitBaseZoom: 1.18, // khung dọc khi không lia: zoom nhẹ, cắt bớt tường hai bên cho nhân vật to hơn       // khung dọc: zoom sát hơn vì người xem dùng điện thoại
+    minShotSeconds: 1.5,     // cảnh cùng mức ưu tiên phải giữ ít nhất bấy nhiêu giây
+    maxQueueWait: 6,         // cảnh chờ quá lâu thì bỏ
+    // Ưu tiên lia cam (cao hơn được cắt ngang cảnh thấp hơn). 0 = không lia.
+    priority: { mom: 100, big: 90, vip: 80, locked: 55, join: 40, gift: 35, comment: 0 },
+    seconds:  { join: 3.5, gift: 2.5, locked: 2.5 },
+    joinCooldown: 6,         // tối thiểu bao nhiêu giây giữa 2 lần lia theo khách mới (live đông thì không bị giật liên tục)
+    // Khung dọc: vùng đặt quán (tỉ lệ khung hình) — né thanh trên, bình luận và nút quà của TikTok
+    portraitSafe: { left: 0.0, right: 0.9, top: 0.2, bottom: 0.7 },
+  },
+  ui: {
+    declutterLabels: true,   // nhãn bị chồng lên nhau thì làm mờ nhãn ít quan trọng
+    portraitTimerOnlyWhenLow: true, // khung dọc: chỉ hiện đồng hồ khi sắp hết giờ / bị khóa (đỡ rối)
+  },
 };

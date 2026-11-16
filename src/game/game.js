@@ -28,7 +28,11 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
   const players = new Map();   // name -> player (đang trong quán)
   const visible = new Set();   // mọi khách còn trên màn hình, kể cả đang đi ra
   const actors = [];           // mọi Character cần update
-  let coins = 0, goalIdx = 0, time = 0, lastFullNotice = -99;
+  let coins = 0, goalIdx = 0, time = 0, lastFullNotice = -99, lastJoinShot = -99;
+  const cam = (target, kind, seconds) => {
+    const pr = CONFIG.camera.priority[kind] ?? 0;
+    if (pr > 0) stage.shot(target, { seconds: seconds ?? CONFIG.camera.seconds[kind] ?? CONFIG.focusSeconds, priority: pr, kind });
+  };
 
   // ---------- Nhân viên ----------
   const staffChar = await Character.create('worker');
@@ -97,7 +101,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     const st = pick(free);
     const p = {
       name, st, state: 'walk', time: CONFIG.startSeconds, vip: false, lockT: 0,
-      momHold: false, eat: 0, look: 0, char: null, label: createLabel(name, 'player'),
+      momHold: false, eat: 0, look: 0, active: 0, char: null, label: createLabel(name, 'player'),
     };
     st.player = p;
     players.set(name, p);
@@ -116,6 +120,11 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     } else {
       p.char.position.set(DOOR.x, 0, DOOR.z);
       hud.feed(name, 'vừa vào quán');
+      // Lia cam theo khách mới đi từ cửa vào (có giãn cách để live đông không bị giật liên tục)
+      if (time - lastJoinShot > CONFIG.camera.joinCooldown && stage.busyPriority < CONFIG.camera.priority.join) {
+        lastJoinShot = time;
+        cam(p.char.group, 'join');
+      }
       await p.char.walk([
         [AISLE_X, DOOR.z], [AISLE_X, st.lineZ], [st.seat.x, st.lineZ], [st.seat.x, st.seat.z],
       ], CONFIG.walkSpeed);
@@ -241,7 +250,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     hud.banner(`${user} lên ghế VIP 👑`, `Ghế vàng, thêm ${Math.round(gift.seconds / 60)} phút chơi`, 4);
     p.label.say('Ghế VIP êm quá!', 3);
     react(p);
-    stage.focusOn(p.char.position, 3);
+    cam(p.char.group, 'vip', 3);
   }
 
   async function treatEveryone(p, user, gift) {
@@ -249,7 +258,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     bigAnnounce(`${user} BAO CẢ QUÁN!`, `Mỗi người một lon Sting và +${Math.round(gift.seconds / 60)} phút`, 5);
     confetti(4);
     sound.fanfare();
-    stage.focusOn(p.char.position, CONFIG.focusSeconds);
+    cam(p.char.group, 'big', CONFIG.focusSeconds);
     const all = seated();
     for (const q of all) if (q !== p) addTime(q, gift.seconds);
     // Lon Sting xuất hiện lần lượt trên từng bàn
@@ -293,6 +302,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     mom.on = true; mom.victim = v; mom.state = 'in';
     mom.char = await Character.create(pick(MOM_SKINS), { scale: 1.12 });
     mom.char.position.set(DOOR.x, 0, DOOR.z);
+    cam(mom.char.group, 'mom', 12);   // đi theo mẹ từ cửa vào
     scene.add(mom.char.group);
     actors.push(mom.char);
     mom.label = createLabel(`Mẹ của ${v.name}`, 'mom');
@@ -314,7 +324,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     v.label.say('Cứu em! Thả tim đi 🙏', CONFIG.mom.scoldSeconds - 1);
     v.look = CONFIG.mom.scoldSeconds;
     hud.banner(`Mẹ ${v.name} đến bắt về! 😱`, 'Thả tim hoặc tặng quà để cứu bạn ấy', CONFIG.mom.scoldSeconds);
-    stage.focusOn(st.seat, CONFIG.mom.scoldSeconds);
+    cam({ x: st.seat.x, z: st.seat.z }, 'mom', CONFIG.mom.scoldSeconds);
     sound.scold();
   }
 
@@ -371,12 +381,14 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       p.label.popHeart(n);
       sound.heart();
       p.look = Math.max(p.look, 1.2);
+      p.active = time;
     },
 
     async onComment(user, text) {
       hud.feed(user, text);
       const p = players.get(user) ?? await join(user);
       p?.label.say(text, 3.5);
+      if (p) { p.active = time + 2; cam(p.char?.group ?? p.st.seat, 'comment'); }
     },
 
     /** coins: số xu thật (kim cương TikTok); bỏ trống thì dùng xu cấu hình của loại quà */
@@ -390,15 +402,18 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       addCoins(value);
       leaderboard.add(user, value);
       addTime(p, gift.seconds);
+      p.active = time + 4;
       sound.ting();
       if (gift.item === 'noodle') {
         hud.feed(user, `tặng ${gift.label}, gọi mì tôm trứng 🍜`);
         p.label.say('Anh ơi cho bát mì!', 3);
         order(p, 'noodle');
+        cam(p.char.group, 'gift');
       } else if (gift.item === 'sting') {
         hud.feed(user, `tặng ${gift.label}, gọi Sting 🥤`);
         p.label.say('Cho em lon Sting!', 3);
         order(p, 'sting');
+        cam(p.char.group, 'gift');
       } else if (gift.item === 'vip') {
         if (p.state === 'walk') await waitSeated(p);
         if (isSeated(p)) makeVip(p, user, gift);
@@ -443,6 +458,38 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     }
   }
 
+  // ---------- Chống chồng nhãn: nhãn quan trọng hơn hiện rõ, nhãn bị che thì mờ đi ----------
+  let declutterT = 0;
+  function declutter(dt) {
+    declutterT -= dt;
+    if (declutterT > 0) return;
+    declutterT = 0.25;
+    const items = [];
+    for (const p of visible) {
+      if (!p.char || p.label.el.hidden) continue;
+      let score = Math.max(0, 8 - (time - p.active)) * 10;
+      if (p.vip) score += 40;
+      if (p.state === 'locked' || p.momHold) score += 60;
+      if (p.state === 'walk') score += 30;
+      // Xoay vòng: mỗi vài giây một nhóm nhãn khác được ưu tiên, để ai cũng có lúc hiện tên
+      score += ((time / 4 + (p.seed ??= Math.random())) % 1) * 25;
+      items.push({ label: p.label, score });
+    }
+    items.push({ label: staff.label, score: 25 });
+    if (mom.label) items.push({ label: mom.label, score: 200 });
+    items.sort((a, b) => b.score - a.score);
+    const kept = [];
+    for (const it of items) {
+      const plate = it.label.el.querySelector('.label-plate');
+      if (!plate) continue;
+      const r = plate.getBoundingClientRect();
+      const hit = kept.some((k) => r.left < k.right - 4 && r.right > k.left + 4 && r.top < k.bottom - 2 && r.bottom > k.top + 2);
+      it.label.el.classList.toggle('is-dim', hit);
+      it.label.el.classList.toggle('is-hidden-overlap', hit && stage.portrait);
+      if (!hit) kept.push(r);
+    }
+  }
+
   function update(dt) {
     time += dt;
     for (const a of actors) a.update(dt);
@@ -461,14 +508,18 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
           p.label.say('Hết giờ rồi! Thả tim cứu em 🥺', 3);
           hud.feed(p.name, 'hết giờ, máy bị khóa');
           sound.alarm();
+          p.active = time + 3;
+          cam(p.char.group, 'locked');
         }
       } else if (p.state === 'locked') {
         if (!frozen && !p.momHold) p.lockT -= dt;
         if (p.lockT <= 0) { leave(p, 'hết giờ nên rời quán'); continue; }
       }
       if (p.state === 'sit') {
-        p.label.setTimer(p.momHold ? 'mẹ tới! cần tim' : fmt(p.time),
-          p.momHold ? 'locked' : p.time < CONFIG.lowTimeSeconds ? 'low' : 'normal');
+        const low = p.time < CONFIG.lowTimeSeconds;
+        const compact = stage.portrait && CONFIG.ui.portraitTimerOnlyWhenLow && !p.momHold && !low;
+        p.label.setTimer(p.momHold ? 'mẹ tới! cần tim' : compact ? '' : fmt(p.time),
+          p.momHold ? 'locked' : compact ? 'hidden' : low ? 'low' : 'normal');
       } else if (p.state === 'locked') {
         p.label.setTimer(`khóa · ${Math.ceil(p.lockT)}s`, 'locked');
       }
@@ -495,6 +546,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     // Nhãn
     for (const p of visible) if (p.char) placeLabel(p.label, p.char, p.state === 'sit' || p.state === 'locked' ? 0.82 : 0.95);
     placeLabel(staff.label, staffChar, 0.95);
+    if (CONFIG.ui.declutterLabels) declutter(dt);
     if (mom.char && mom.label) placeLabel(mom.label, mom.char, 1.05);
 
     // Đồ trên bàn: hết hạn thì dọn

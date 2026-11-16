@@ -12,6 +12,7 @@ import { createMuteButton } from './ui/muteButton.js';
 import { createLeaderboard } from './ui/leaderboard.js';
 import { connectLive } from './live/tiktok.js';
 import { mapGift } from './live/gifts.js';
+import { showSafeZones } from './ui/safeZones.js';
 
 const loadingEl = document.getElementById('loading');
 
@@ -44,6 +45,9 @@ async function main() {
     },
   });
   sim.seedInitial();
+
+  // ?safe: xem trước vùng bị giao diện TikTok che trên điện thoại
+  if (new URLSearchParams(location.search).has('safe')) showSafeZones();
 
   // ?clean trên URL (dùng cho OBS / LIVE Studio): ẩn sẵn thanh giả lập, vẫn tự chạy
   if (new URLSearchParams(location.search).has('clean')) {
