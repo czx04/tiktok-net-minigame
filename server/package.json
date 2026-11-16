@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "fake": "node index.js --fake"
   },
   "dependencies": {
     "dotenv": "^18.0.10",

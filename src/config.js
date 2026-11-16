@@ -13,12 +13,13 @@ export const CONFIG = {
 
   // ---------- Quà ----------
   // Mỗi loại quà: món gọi (item), giây cộng thêm, xu góp vào mục tiêu chung.
-  // tiktokNames / minDiamonds dùng ở giai đoạn 3 để nhận diện quà TikTok.
+  // Nhận diện quà TikTok: khớp theo tên (tiktokNames, tiếng Anh như TikTok gửi về) trước;
+  // quà lạ thì xét tổng kim cương ≥ minDiamonds (chọn mức cao nhất đạt được).
   gifts: {
     rose:  { label: 'Hoa hồng', item: 'noodle', seconds: 30,  coins: 1,   tiktokNames: ['Rose'],              minDiamonds: 1 },
-    small: { label: 'Quà nhỏ',  item: 'sting',  seconds: 60,  coins: 5,   tiktokNames: ['TikTok', 'Finger Heart'], minDiamonds: 5 },
-    medium:{ label: 'Quà vừa',  item: 'vip',    seconds: 300, coins: 99,  tiktokNames: [],                    minDiamonds: 99 },
-    big:   { label: 'Quà to',   item: 'all',    seconds: 120, coins: 500, tiktokNames: [],                    minDiamonds: 500 },
+    small: { label: 'Quà nhỏ',  item: 'sting',  seconds: 60,  coins: 5,   tiktokNames: ['TikTok', 'Finger Heart', 'Ice Cream Cone', 'GG', 'Heart Me'], minDiamonds: 5 },
+    medium:{ label: 'Quà vừa',  item: 'vip',    seconds: 300, coins: 99,  tiktokNames: ['Hand Hearts', 'Doughnut', 'Perfume'], minDiamonds: 99 },
+    big:   { label: 'Quà to',   item: 'all',    seconds: 120, coins: 500, tiktokNames: ['Galaxy', 'Lion', 'Universe', 'Interstellar'], minDiamonds: 500 },
   },
 
   // ---------- Đồ ăn uống trên bàn ----------
@@ -45,6 +46,16 @@ export const CONFIG = {
     likeEvery: [0.6, 2.2],
     commentEvery: [2.5, 6],
     giftEvery: [10, 22],
+  },
+
+  // ---------- Kết nối TikTok Live (giai đoạn 3) ----------
+  // Chạy server: cd server && npm start (username để trong file .env)
+  live: {
+    enabled: true,           // tự kết nối server nếu có; không có server thì chỉ chạy giả lập
+    port: 8787,
+    simWhileLive: true,      // vẫn chạy giả lập song song để quán không bao giờ vắng
+    simSlowdownWhenLive: 2.5,// khi đã nối TikTok: giả lập chậm lại bao nhiêu lần
+    maxRepeatPerGift: 5,     // quà combo (vd 10 hoa hồng) tối đa gọi bao nhiêu món
   },
 
   // ---------- Di chuyển / camera ----------

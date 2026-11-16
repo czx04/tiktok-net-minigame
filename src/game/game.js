@@ -124,9 +124,29 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     return p;
   }
 
+  // ---------- Ảnh đại diện TikTok trên màn hình máy ----------
+  const avatars = new Map();   // tên -> HTMLImageElement đã tải xong
+  function applyAvatar(p) {
+    const img = avatars.get(p.name);
+    if (img && p.st.player === p) { p.st.screen.setAvatar(img); drawScreen(p.st); }
+  }
+  function setAvatar(user, src) {
+    if (!src || avatars.has(user)) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      avatars.set(user, img);
+      if (avatars.size > 400) avatars.delete(avatars.keys().next().value);
+      const p = players.get(user);
+      if (p) applyAvatar(p);
+    };
+    img.src = src;
+  }
+
   function seat(p) {
     const { st, char } = p;
     p.state = 'sit';
+    applyAvatar(p);
     char.path = [];
     char.position.set(st.seat.x, 0, st.seat.z);
     char.group.rotation.y = st.faceRot;
@@ -142,6 +162,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
     p.state = 'leave';
     p.momHold = false;
     st.player = null;
+    st.screen.setAvatar(null);
     if (p.vip) st.setVip(false);
     players.delete(p.name);
     drawScreen(st);
@@ -358,14 +379,16 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
       p?.label.say(text, 3.5);
     },
 
-    async onGift(user, key) {
+    /** coins: số xu thật (kim cương TikTok); bỏ trống thì dùng xu cấu hình của loại quà */
+    async onGift(user, key, coinsValue) {
       const gift = CONFIG.gifts[key];
       if (!gift) return;
       if (mom.on && mom.state === 'scold') momSaved(user);
       const p = players.get(user) ?? await join(user);
       if (!p) return;
-      addCoins(gift.coins);
-      leaderboard.add(user, gift.coins);
+      const value = Number.isFinite(coinsValue) && coinsValue > 0 ? coinsValue : gift.coins;
+      addCoins(value);
+      leaderboard.add(user, value);
       addTime(p, gift.seconds);
       sound.ting();
       if (gift.item === 'noodle') {
@@ -387,6 +410,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard }) {
 
     blackout,
     momEvent,
+    setAvatar,
     getPlayers() {
       return [...players.values()].filter((p) => p.state !== 'leave').map((p) => p.name);
     },

@@ -221,3 +221,17 @@ body.is-blackout #labels .character-label { opacity: .75; }
   .big-announce { animation: none; }
   .character-label.is-mom-target .label-plate { animation: none; border-color: #9e78b3; }
 }
+
+/* ---------- Trạng thái kết nối TikTok (giai đoạn 3) ---------- */
+#live-chip {
+  position: fixed; left: 50%; top: calc(var(--ui-gap, 12px) + 64px); transform: translateX(-50%);
+  z-index: 30; pointer-events: none;
+  font: 700 clamp(10px, 1.6vmin, 13px)/1 "Be Vietnam Pro", sans-serif;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82); color: #6b5a4a;
+  box-shadow: 0 2px 10px rgba(80, 50, 20, 0.12);
+}
+#live-chip.on { background: #e8473f; color: #fff; }
+#live-chip.wait { background: #fff1dd; color: #b8692b; }
+body.sim-hidden #live-chip.off,
+body.sim-hidden #live-chip.wait { display: none; }

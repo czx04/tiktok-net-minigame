@@ -10,6 +10,8 @@ import { createSimulator } from './live/simulator.js';
 import { createSound } from './ui/sound.js';
 import { createMuteButton } from './ui/muteButton.js';
 import { createLeaderboard } from './ui/leaderboard.js';
+import { connectLive } from './live/tiktok.js';
+import { mapGift } from './live/gifts.js';
 
 const loadingEl = document.getElementById('loading');
 
@@ -43,8 +45,50 @@ async function main() {
   });
   sim.seedInitial();
 
-  // Cho TikTok (giai đoạn 3) và bảng điều khiển gọi vào
+  // ?clean trên URL (dùng cho OBS / LIVE Studio): ẩn sẵn thanh giả lập, vẫn tự chạy
+  if (new URLSearchParams(location.search).has('clean')) {
+    const bar = document.getElementById('simbar');
+    bar.hidden = true;
+    document.body.classList.add('sim-hidden');
+  }
+
+  // Cho bảng điều khiển / công cụ khác gọi vào
   window.QuanNet = game.handlers;
+
+  // ----- TikTok Live: nhận sự kiện thật từ server (server/index.js) -----
+  const live = { connected: false };
+  if (CONFIG.live.enabled) {
+    const chip = document.createElement('div');
+    chip.id = 'live-chip';
+    document.body.append(chip);
+    const proxy = (url) => url ? `http://${location.hostname}:${CONFIG.live.port}/avatar?url=${encodeURIComponent(url)}` : null;
+    connectLive({
+      url: `ws://${location.hostname}:${CONFIG.live.port}/ws`,
+      onStatus(s) {
+        live.connected = !!(s.online && s.connected);
+        chip.className = live.connected ? 'on' : s.online ? 'wait' : 'off';
+        chip.textContent = live.connected ? `● LIVE @${s.username}`
+          : s.online ? (s.username ? `Đang chờ @${s.username} lên live…` : 'Server chưa có username (.env)')
+          : 'Chỉ giả lập';
+      },
+      onEvent(m) {
+        const user = m.name || m.user;
+        if (!user) return;
+        const h = game.handlers;
+        if (m.avatar) h.setAvatar(user, proxy(m.avatar));
+        if (m.type === 'join') h.onJoin(user);
+        else if (m.type === 'like') h.onLike(user, Math.max(1, Math.min(m.count || 1, 50)));
+        else if (m.type === 'comment') h.onComment(user, String(m.text ?? '').slice(0, 120));
+        else if (m.type === 'gift') {
+          const g = mapGift(m.giftName, m.diamonds || 0, m.count || 1);
+          if (!g) return;
+          // Xu góp mục tiêu = kim cương thật, chia đều cho số lần gọi món
+          const each = (m.diamonds || 0) / g.times;
+          (async () => { for (let i = 0; i < g.times; i++) { await h.onGift(user, g.key, each); await new Promise((r) => setTimeout(r, 400)); } })();
+        }
+      },
+    });
+  }
 
   document.body.classList.add('ready');
 
@@ -66,7 +110,8 @@ async function main() {
   stage.renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    sim.update(dt);
+    if (!live.connected) sim.update(dt);
+    else if (CONFIG.live.simWhileLive) sim.update(dt / CONFIG.live.simSlowdownWhenLive);
     game.update(dt);
     stage.update(dt);
     stage.render();
