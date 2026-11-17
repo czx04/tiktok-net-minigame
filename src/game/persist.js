@@ -1,8 +1,8 @@
-// Lưu tiến độ phiên live (xu mục tiêu + bảng xếp hạng) vào localStorage,
+// Lưu tiến độ phiên live (bảng xếp hạng Top đại gia) vào localStorage,
 // để lỡ tải lại trang / OBS làm mới nguồn thì không mất.
 import { CONFIG } from '../config.js';
 
-const KEY = 'quannet.session.v1';
+const KEY = 'quannet.session.v2';   // v2: bỏ mục tiêu + bỏ khách giả → bỏ dữ liệu cũ (Top đại gia toàn tên giả)
 
 export function loadSession() {
   if (!CONFIG.persist.enabled) return null;

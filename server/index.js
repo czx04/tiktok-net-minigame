@@ -129,7 +129,8 @@ async function connectTikTok() {
   if (stopping) return;
   const conn = new TikTokLiveConnection(username, {
     ...(process.env.SIGN_API_KEY ? { signApiKey: process.env.SIGN_API_KEY } : {}),
-    enableExtendedGiftInfo: true,
+    // Danh mục quà mở rộng gọi API ký trả phí; tên/kim cương dùng data.gift từ sự kiện.
+    enableExtendedGiftInfo: false,
     processInitialData: false,
   });
   connection = conn;
@@ -175,7 +176,7 @@ async function connectTikTok() {
   } catch (error) {
     if (!active()) return;
     updateStatus({ connected: false, roomId: null, lastError: String(error?.message || error) });
-    console.log(`Đang chờ @${username} lên live…`);
+    console.log(`Không kết nối được TikTok @${username}: ${state.lastError}. Thử lại sau 30s…`);
     retry(30000);
   }
 }

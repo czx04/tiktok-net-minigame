@@ -60,9 +60,11 @@ export function createSimulator(handlers, config) {
   return {
     trigger,
     setAuto(value) { auto = Boolean(value); },
-    update(dt) {
+    /** guests=false: chỉ chạy sự kiện ngẫu nhiên, không tạo khách / tim / bình luận / quà giả. */
+    update(dt, { guests = true, events = true } = {}) {
       if (!auto || !Number.isFinite(dt) || dt <= 0) return;
       for (const type of Object.keys(timers)) {
+        if (type === 'event' ? !events : !guests) continue;
         timers[type] -= dt;
         if (timers[type] > 0) continue;
         // Mỗi khung chỉ phát một lần/loại, tránh dồn sự kiện sau khi đổi tab.

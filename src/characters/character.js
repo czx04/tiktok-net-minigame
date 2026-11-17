@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { makeCharacterModel } from '../scene/assets.js';
 
+const SEAT_HEIGHT = 0.24;   // mặt đệm chairDesk (đã phóng ×1.15 trong shop.js) ≈ 0.3; animation `sit` ngồi bệt sàn
+
 export class Character {
   static async create(skin, { scale = 1 } = {}) {
     const m = await makeCharacterModel(skin);
@@ -20,7 +22,8 @@ export class Character {
     this.speed = 1.3;
     this.onArrive = null;
     this.bob = 0;          // nảy lên khi vui
-    this.baseY = 0;        // độ cao khi ngồi
+    this.baseY = 0;        // độ cao nền (khi đi = 0)
+    this.sitY = 0;         // nâng lên mặt đệm ghế khi đang chạy animation `sit`
     this.mixer.timeScale = 1;
     // Xương đầu/thân không bị animation `sit` điều khiển → dùng để gục đầu, ăn mì, ngó nghiêng
     this.head = root.getObjectByName('head');
@@ -112,7 +115,10 @@ export class Character {
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       this.group.rotation.y += diff * Math.min(1, dt * 12);
     }
-    let y = this.baseY;
+    // Animation `sit` của Kenney ngồi bệt sát sàn → nâng lên mặt đệm ghế, không thì thân chùm mất cái ghế
+    const sitTarget = this.current === this.actions.sit ? SEAT_HEIGHT : 0;
+    this.sitY += (sitTarget - this.sitY) * Math.min(1, dt * 10);
+    let y = this.baseY + this.sitY;
     if (this.bob > 0) {
       this.bob -= dt;
       y += Math.sin((1 - this.bob / 0.45) * Math.PI) * 0.12;

@@ -48,6 +48,8 @@ async function makeStation(idx, x, z, facing) {
 
   await addProp(g, 'furniture', 'desk', 0, 0);
   const chair = await addProp(g, 'furniture', 'chairDesk', 0, SEAT_OFF - 0.05, Math.PI);
+  // Ghế Kenney nhỏ hơn nhân vật chibi (đầu to) → phóng to để còn thấy ghế khi có người ngồi
+  chair.scale.set(1.2, 1.15, 1.2);
   // Ghế có vật liệu riêng để đổi màu VIP
   const chairMats = [];
   chair.traverse((o) => {
@@ -186,18 +188,5 @@ export async function buildShop(scene) {
   menu.position.set(-1.75, 0.8, ROOM.minZ + 0.05);
   root.add(menu);
 
-  // ----- Điều hòa (mở khóa ở mục tiêu chung) -----
-  const aircon = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.26, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0xfbfbf8, roughness: 0.5 }));
-  body.castShadow = true;
-  const vent = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.03, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0xb9c3c9 }));
-  vent.position.set(0, -0.08, 0.1);
-  aircon.add(body, vent);
-  aircon.position.set(1.95, 1.0, ROOM.minZ + 0.12);
-  aircon.visible = false;
-  root.add(aircon);
-
-  return { root, stations, aircon, sign, menu };
+  return { root, stations, sign, menu };
 }

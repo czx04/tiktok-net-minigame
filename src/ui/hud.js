@@ -6,13 +6,6 @@ export function createHud(root) {
     return el;
   };
   const top = make('div', 'hud-top', root);
-  const goal = make('div', 'hud-goal', top);
-  const goalText = make('div', 'goal-text', goal);
-  const track = make('div', 'goal-track', goal);
-  track.setAttribute('role', 'progressbar');
-  track.setAttribute('aria-valuemin', '0');
-  track.setAttribute('aria-valuemax', '100');
-  const fill = make('div', 'goal-fill', track);
   const count = make('div', 'hud-count', top);
   const notice = make('div', 'hud-banner', root);
   notice.setAttribute('role', 'status');
@@ -52,15 +45,6 @@ export function createHud(root) {
       if (seconds > 0) bannerTimeout = setTimeout(() => notice.classList.remove('is-visible'), seconds * 1000);
     },
     hideBanner() { clearTimeout(bannerTimeout); notice.classList.remove('is-visible'); },
-    setGoal(name, coins, need) {
-      const current = Math.max(0, Number(coins) || 0);
-      const target = Math.max(0, Number(need) || 0);
-      const percent = target > 0 ? Math.min(100, current / target * 100) : 0;
-      goalText.textContent = `Mục tiêu: ${name ?? ''} · ${current.toLocaleString('vi-VN')}/${target.toLocaleString('vi-VN')} xu`;
-      fill.style.width = `${percent}%`;
-      track.setAttribute('aria-label', goalText.textContent);
-      track.setAttribute('aria-valuenow', String(Math.round(percent)));
-    },
     setCount(used, total, waiting = 0) {
       count.textContent = waiting > 0 ? `${used}/${total} máy · ${waiting} chờ` : `${used}/${total} máy`;
     },

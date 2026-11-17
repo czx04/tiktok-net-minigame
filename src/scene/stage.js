@@ -40,8 +40,10 @@ export function createStage(canvas) {
       box: [[-4.1, 3.0], [0, 1.35], [-3.6, 3.6]] },
     // Khung dọc (TikTok): phía trên/dưới vốn bị giao diện TikTok che, nên ưu tiên phóng to 20 máy,
     // chấp nhận cắt bớt tường hai bên.
-    portrait: { dir: new THREE.Vector3(0.62, 1.55, 1.25).normalize(), center: new THREE.Vector3(-0.55, 0.3, -0.75),
-      box: [[-2.95, 2.45], [0, 0.6], [-3.0, 2.85]] },
+    // Nhìn gần chính diện: vùng an toàn của khung dọc là hình chữ nhật NẰM NGANG (giữa thanh trên và khung bình luận),
+    // nhìn chéo thì phòng thành hình thoi, phí 4 góc. box: quầy + hàng chờ (tường trái) + 20 máy; tâm = tâm box.
+    portrait: { dir: new THREE.Vector3(0.3, 1.25, 1.35).normalize(),
+      box: [[-3.6, 2.3], [0, 0.55], [-2.4, 2.4]] },
   };
   const camDir = new THREE.Vector3();
   const center = new THREE.Vector3();
@@ -57,7 +59,8 @@ export function createStage(canvas) {
     document.body.classList.toggle('portrait', portrait);
     const view = portrait ? VIEWS.portrait : VIEWS.landscape;
     camDir.copy(view.dir);
-    center.copy(view.center);
+    if (view.center) center.copy(view.center);
+    else center.set(...view.box.map(([a, b]) => (a + b) / 2));
     look.copy(center);
     camera.zoom = portrait ? CONFIG.camera.portraitBaseZoom : 1;
     camera.position.copy(center).addScaledVector(camDir, 30);
@@ -112,6 +115,9 @@ export function createStage(canvas) {
     shot({ x: pos.x, z: pos.z }, { seconds, priority });
   }
 
+  const tour = CONFIG.camera.portraitTour ?? [];
+  let tourIdx = 0, tourT = tour[0]?.seconds ?? 0;
+
   function update(dt) {
     clock += dt;
     let wantZoom = portrait ? CONFIG.camera.portraitBaseZoom : 1;
@@ -130,6 +136,14 @@ export function createStage(canvas) {
       posOf(current.target, shotTarget);
       look.lerp(shotTarget, Math.min(1, dt * 3));
       wantZoom = portrait ? CONFIG.camera.portraitZoom : CONFIG.focusZoom;
+    } else if (portrait && tour.length) {
+      // Không có sự kiện: tự đi một vòng (gần dãy trên → dãy dưới → quầy/hàng chờ → toàn cảnh)
+      tourT -= dt;
+      if (tourT <= 0) { tourIdx = (tourIdx + 1) % tour.length; tourT = tour[tourIdx].seconds; }
+      const s = tour[tourIdx];
+      if (s.x === undefined) shotTarget.copy(center); else shotTarget.set(s.x, center.y, s.z);
+      look.lerp(shotTarget, Math.min(1, dt * 1.4));
+      wantZoom = s.zoom;
     } else {
       look.lerp(center, Math.min(1, dt * 2.2));
     }
@@ -156,6 +170,6 @@ export function createStage(canvas) {
     render: () => renderer.render(scene, camera),
     get zoom() { return camera.zoom; },
     /** Tỉ lệ nhãn HTML: to lên khi camera zoom (cỡ gốc do CSS tính theo khung hình). */
-    get labelScale() { return Math.min(1.4, Math.sqrt(camera.zoom)); },
+    get labelScale() { return portrait ? Math.min(1.12, Math.cbrt(camera.zoom)) : Math.min(1.4, Math.sqrt(camera.zoom)); },
   };
 }

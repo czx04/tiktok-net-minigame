@@ -9,7 +9,7 @@ Tên menu có thể khác tùy phiên bản. Nếu máy Mac không có LIVE Stud
 
 1. Mở LIVE Studio, tạo **Scene/cảnh dọc**, khung **1080×1920**.
 2. Chọn thêm nguồn, tìm **“Link Source” / “Web source” (Nguồn trình duyệt)**. Nhập URL `http://localhost:5173`, đặt kích thước nguồn **1080×1920**, căn vừa khung dọc.
-3. Đổi URL thành **`http://localhost:5173/?clean`** để thanh giả lập ẩn sẵn. Giả lập vẫn tự chạy.
+3. Đổi URL thành **`http://localhost:5173/?clean`** để thanh giả lập ẩn sẵn.
 4. Nếu phiên bản không có nguồn web: mở game trong Chrome, chọn **“Window capture/Ghi cửa sổ”**, chọn đúng cửa sổ Chrome rồi căn vừa khung. Bấm vào trang Chrome và nhấn **H** nếu thanh giả lập còn hiện.
 5. Với nguồn web, bật **“Control audio via app/Âm thanh trình duyệt”** hoặc tùy chọn tương đương (tên có thể khác tùy phiên bản). Với ghi cửa sổ, thêm/chọn nguồn âm thanh Chrome hoặc âm thanh máy tính trong bộ trộn.
 6. Bấm vào game qua chế độ tương tác nguồn (nếu có), hoặc trong Chrome khi ghi cửa sổ, để cho phép phát âm thanh. Kiểm tra mức tiếng trong bộ trộn rồi bắt đầu LIVE. Server chỉ nối TikTok khi tài khoản đã LIVE; chờ chip đỏ **“● LIVE @tên”** xuất hiện.
@@ -31,7 +31,7 @@ Tên menu có thể khác tùy phiên bản. Nếu máy Mac không có LIVE Stud
 2. Thanh giả lập đã ẩn bằng `?clean` hoặc H; khung hình dọc vừa nguồn.
 3. Đã bấm vào game, bật tiếng và kiểm tra âm lượng trong phần mềm phát; tránh thu cùng âm thanh hai lần.
 4. Dùng điện thoại khác vào LIVE và thử thả tim, kiểm tra game nhận tương tác.
-5. Để **Tự chạy** bật và giữ `live.simWhileLive: true` trong `src/config.js` để giả lập chạy song song, quán không vắng. Ẩn thanh giả lập không tắt chế độ này.
+5. Mặc định quán chỉ có người xem thật: không khách giả, không sự kiện tự chạy. Muốn quán luôn đông thì bật `sim.fakeGuests` (và `live.simWhileLive`) trong `src/config.js`; muốn có mất điện / mẹ đến… tự xảy ra thì bật `sim.randomEvents`.
 6. Giữ nguyên hai terminal trong suốt buổi phát. Nếu đổi `PORT` trong `.env`, sửa cả `live.port` trong `src/config.js` cho khớp, rồi khởi động lại server và tải lại game.
 
 ## D. Xử lý sự cố

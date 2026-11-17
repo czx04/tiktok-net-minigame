@@ -79,11 +79,7 @@ body.ready #loading { display: none; }
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 1.111vh;
   max-width: 122.2vh; margin-inline: auto;
 }
-.hud-goal { min-width: 0; padding: 1.389vh 1.667vh; border-radius: 2.083vh; background: var(--surface); box-shadow: var(--shadow); }
-.goal-text { font-size: .9rem; font-weight: 700; overflow-wrap: anywhere; line-height: 1.4; max-height: 2.8em; overflow: hidden; }
-.goal-track { height: 0.8333vh; margin-top: 0.9722vh; overflow: hidden; border-radius: 13.75vh; background: #e8ddcd; }
-.goal-fill { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width .45s ease; }
-.hud-count { padding: 1.25vh 1.389vh; border-radius: 13.75vh; background: var(--surface); font-size: .85rem; font-weight: 800; white-space: nowrap; box-shadow: var(--shadow); }
+.hud-count { grid-column: 2; padding: 1.25vh 1.389vh; border-radius: 13.75vh; background: var(--surface); font-size: .85rem; font-weight: 800; white-space: nowrap; box-shadow: var(--shadow); }
 .hud-banner {
   position: absolute; inset: calc(var(--top-height) + env(safe-area-inset-top, 0px) + var(--ui-gap)) auto auto 50%;
   width: min(77.78vh, calc(100% - var(--ui-gap) * 2)); padding: 1.944vh 2.5vh;
@@ -132,7 +128,6 @@ body.ready #loading { display: none; }
 .sim-button.is-active { background: #fce0bd; color: #7c3f12; border-color: var(--accent); }
 @media (max-width: 400px) {
   .sim-button { padding: 0.9722vh 1.25vh; }
-  .hud-goal { padding: 1.111vh 1.389vh; }
   .hud-count { padding: 1.111vh; }
   .hud-banner { padding: 1.667vh; }
 }
@@ -250,15 +245,15 @@ body.portrait {
   font-size: 3.2vw;
 }
 body.portrait .label-plate {
-  gap: .8vw; max-width: 42vw; padding: .8vw 1.4vw;
-  border-width: .16vw; border-radius: 1.8vw; font-size: 3.2vw;
+  gap: .6vw; max-width: 34vw; padding: .5vw 1.1vw;
+  border-width: .14vw; border-radius: 1.4vw; font-size: 2.6vw;
 }
-body.portrait .label-name { max-width: 30vw; }
-body.portrait .label-timer { font-size: 2.7vw; }
+body.portrait .label-name { max-width: 22vw; }
+body.portrait .label-timer { font-size: 2.2vw; }
 body.portrait .label-timer[data-state='locked'] { padding: .3vw .6vw; border-radius: .7vw; }
 body.portrait .label-bubble {
-  bottom: calc(100% + 1vw); max-width: 46vw; padding: 1.2vw 1.6vw;
-  border-radius: 2vw; font-size: 3.2vw;
+  bottom: calc(100% + .8vw); max-width: 38vw; padding: .9vw 1.3vw;
+  border-radius: 1.6vw; font-size: 2.7vw;
 }
 body.portrait .label-bubble::after { border-width: .8vw; border-bottom: 0; }
 body.portrait .label-heart { font-size: 6vw; animation-name: portrait-heart-rise; }
@@ -271,9 +266,6 @@ body.portrait .hud-top {
   inset: 13.5vh 3vw auto 4vw; max-width: none; margin: 0;
   grid-template-columns: minmax(0, 64vw) minmax(0, 28vw); gap: 1vw;
 }
-body.portrait .hud-goal { padding: 1.6vw; border-radius: 2vw; }
-body.portrait .goal-text { font-size: 3vw; line-height: 1.25; max-height: 2.5em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.portrait .goal-track { height: 1.4vw; margin-top: 1vw; }
 body.portrait .hud-count {
   justify-self: end; padding: 1vw 1.2vw; border-radius: 10vw; font-size: 3.2vw;
 }
@@ -323,7 +315,7 @@ body.portrait .sim-button { gap: .7vw; padding: 1vw 1.4vw; min-height: 4.8vw; fo
 .safe-zones__caption { position: absolute; bottom: 1vw; left: 1vw; padding: .6vw 1vw; border-radius: 1vw; background: rgb(40 10 15 / 85%); font-size: 2vw; }
 
 /* Khung dọc: nhãn bị nhãn quan trọng hơn che thì ẩn hẳn (xoay vòng theo thời gian) */
-body.portrait #labels .character-label.is-hidden-overlap { opacity: 0; }
+body.portrait #labels .character-label.is-hidden-overlap { opacity: 0; transition-duration: .08s; }
 /* Khung ngang: chip trạng thái TikTok ở góc dưới-phải, trên thanh giả lập (không đè quầy) */
 body:not(.portrait) #live-chip {
   top: auto; left: auto; transform: none;
@@ -372,11 +364,14 @@ body:not(.portrait).sim-hidden #live-chip { bottom: var(--ui-gap); }
 }
 body.portrait .hud-hints {
   left: 4vw;
-  top: calc(13.5vh + 11vw);
+  top: 13.5vh;
   transform: none;
   max-width: 64vw;
   font-size: 3.4vw;
   padding: 1.2vw 2.6vw;
+  /* nền đậm cho nổi trên nền be khi xem bằng điện thoại */
+  background: var(--brown-glass);
+  color: #fff;
 }
 body.portrait #live-chip { top: calc(13.5vh + 24vw); }
 @media (prefers-reduced-motion: reduce) {

@@ -7,8 +7,11 @@ const BASE = import.meta.env.BASE_URL + 'models/';
 const loader = new GLTFLoader();
 const cache = new Map();
 
+// Nhân viên quán: áo phông, tóc đen — dành riêng, khách không dùng để khỏi nhầm.
+export const STAFF_SKIN = 'male-f';
+
 export const CHARACTER_SKINS = [
-  'male-a', 'male-b', 'male-c', 'male-d', 'male-e', 'male-f', 'male-g',
+  'male-a', 'male-b', 'male-c', 'male-d', 'male-e', 'male-g',
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f',
 ];
 
@@ -30,7 +33,7 @@ function load(path) {
 export async function preloadAll(onProgress) {
   const paths = [
     ...CHARACTER_SKINS.map((s) => `characters/character-${s}.glb`),
-    'characters/character-worker.glb',
+    `characters/character-${STAFF_SKIN}.glb`,
     ...FURNITURE.map((f) => `furniture/${f}.glb`),
     ...FOOD.map((f) => `food/${f}.glb`),
   ];

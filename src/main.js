@@ -44,7 +44,7 @@ async function main() {
   if (saved) leaderboard.restore(saved.leaders);
   const game = await createGame({ stage, shop, hud, sound, leaderboard, hints, saved });
   // Lưu tiến độ mỗi vài giây và khi đóng / tải lại trang
-  const persist = () => saveSession({ ...game.progress(), leaders: leaderboard.entries() });
+  const persist = () => saveSession({ leaders: leaderboard.entries() });
   setInterval(persist, CONFIG.persist.everySeconds * 1000);
   addEventListener('pagehide', persist);
   addEventListener('beforeunload', persist);
@@ -57,7 +57,7 @@ async function main() {
       else sim.trigger(type);
     },
   });
-  sim.seedInitial();
+  if (CONFIG.sim.fakeGuests) sim.seedInitial();
 
   // ?safe: xem trước vùng bị giao diện TikTok che trên điện thoại
   if (new URLSearchParams(location.search).has('safe')) showSafeZones();
@@ -99,7 +99,7 @@ async function main() {
         else if (m.type === 'gift') {
           const g = mapGift(m.giftName, m.diamonds || 0, m.count || 1);
           if (!g) return;
-          // Xu góp mục tiêu = kim cương thật, chia đều cho số lần gọi món
+          // Xu lên Top đại gia = kim cương thật, chia đều cho số lần gọi món
           const each = (m.diamonds || 0) / g.times;
           (async () => { for (let i = 0; i < g.times; i++) { await h.onGift(user, g.key, each); await new Promise((r) => setTimeout(r, 400)); } })();
         }
@@ -113,7 +113,7 @@ async function main() {
   if (import.meta.env.DEV) {
     window.__step = (sec, withSim = false) => {
       for (let t = 0; t < sec; t += 1 / 30) {
-        if (withSim) sim.update(1 / 30);
+        if (withSim) sim.update(1 / 30, { guests: CONFIG.sim.fakeGuests, events: CONFIG.sim.randomEvents });
         game.update(1 / 30);
         stage.update(1 / 30);
       }
@@ -127,8 +127,9 @@ async function main() {
   stage.renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    if (!live.connected) sim.update(dt);
-    else if (CONFIG.live.simWhileLive) sim.update(dt / CONFIG.live.simSlowdownWhenLive);
+    // Khách giả / sự kiện tự chạy: chỉ khi bật trong CONFIG.sim (mặc định tắt hết — quán chạy bằng người xem thật)
+    const guests = CONFIG.sim.fakeGuests && (!live.connected || CONFIG.live.simWhileLive);
+    sim.update(live.connected && guests ? dt / CONFIG.live.simSlowdownWhenLive : dt, { guests, events: CONFIG.sim.randomEvents });
     game.update(dt);
     stage.update(dt);
     stage.render();

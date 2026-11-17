@@ -1,9 +1,9 @@
 // Luật chơi: khách vào/ra, giờ chơi, khóa máy, tim, bình luận, quà, VIP, bao quán,
-// nhân viên giao đồ, mục tiêu chung, mất điện, mẹ đến.
+// nhân viên giao đồ, mất điện, mẹ đến.
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { Character } from '../characters/character.js';
-import { CHARACTER_SKINS } from '../scene/assets.js';
+import { CHARACTER_SKINS, STAFF_SKIN } from '../scene/assets.js';
 import { AISLE_X, DOOR, STAFF_HOME } from '../scene/shop.js';
 import { createLabel } from '../ui/labels.js';
 import { confetti, bigAnnounce } from '../ui/effects.js';
@@ -29,14 +29,14 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
   const queue = [];            // khách đang xếp hàng chờ máy (đầu hàng ở vị trí 0)
   const visible = new Set();   // mọi khách còn trên màn hình, kể cả đang đi ra
   const actors = [];           // mọi Character cần update
-  let coins = 0, goalIdx = 0, time = 0, lastFullNotice = -99, lastJoinShot = -99, lastQueueHint = -99;
+  let time = 0, lastFullNotice = -99, lastJoinShot = -99, lastQueueHint = -99;
   const cam = (target, kind, seconds) => {
     const pr = CONFIG.camera.priority[kind] ?? 0;
     if (pr > 0) stage.shot(target, { seconds: seconds ?? CONFIG.camera.seconds[kind] ?? CONFIG.focusSeconds, priority: pr, kind });
   };
 
   // ---------- Nhân viên ----------
-  const staffChar = await Character.create('worker');
+  const staffChar = await Character.create(STAFF_SKIN);
   staffChar.position.set(STAFF_HOME.x, 0, STAFF_HOME.z);
   staffChar.faceTo(0);
   scene.add(staffChar.group);
@@ -51,21 +51,6 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
   // ---------- Tiện ích ----------
   const seated = () => [...players.values()].filter((p) => p.state === 'sit' || p.state === 'locked');
   function refreshCount() { hud.setCount(stations.filter((s) => s.player).length, stations.length, queue.length); }
-
-  function addCoins(n) {
-    coins += n;
-    const g = CONFIG.goals[goalIdx];
-    if (g && coins >= g.coins) {
-      coins -= g.coins;
-      if (g.unlock === 'aircon') shop.aircon.visible = true;
-      bigAnnounce(`Đạt mục tiêu: ${g.name}!`, `Cả live cùng góp ${g.coins} xu 🎉`, 5);
-      confetti(3);
-      sound.fanfare();
-      goalIdx = Math.min(goalIdx + 1, CONFIG.goals.length - 1);
-    }
-    const cur = CONFIG.goals[goalIdx];
-    hud.setGoal(cur.name, coins, cur.coins);
-  }
 
   function drawScreen(st) {
     const p = st.player;
@@ -581,7 +566,6 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
       const p = players.get(user) ?? await join(user);
       if (!p) return;
       const value = Number.isFinite(coinsValue) && coinsValue > 0 ? coinsValue : gift.coins;
-      addCoins(value);
       leaderboard.add(user, value);
       addTime(p, gift.seconds);
       if (p.state === 'wait') { p.boost += 1000 + value; arrangeQueue(); p.label.say('Tặng quà nên được lên đầu hàng 😎', 3); }
@@ -648,7 +632,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
   function declutter(dt) {
     declutterT -= dt;
     if (declutterT > 0) return;
-    declutterT = 0.25;
+    declutterT = 0.15;   // camera lia liên tục → kiểm thường hơn
     const items = [];
     for (const p of visible) {
       if (!p.char || p.label.el.hidden) continue;
@@ -664,11 +648,19 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
     if (mom.label) items.push({ label: mom.label, score: 200 });
     items.sort((a, b) => b.score - a.score);
     const kept = [];
+    const gap = innerWidth * 0.004;
     for (const it of items) {
       const plate = it.label.el.querySelector('.label-plate');
       if (!plate) continue;
-      const r = plate.getBoundingClientRect();
-      const hit = kept.some((k) => r.left < k.right - 4 && r.right > k.left + 4 && r.top < k.bottom - 2 && r.bottom > k.top + 2);
+      // Tính cả bong bóng lời thoại (đang hiện) + chừa khe nhỏ giữa các nhãn
+      const pr = plate.getBoundingClientRect();
+      const r = { left: pr.left - gap, right: pr.right + gap, top: pr.top - gap, bottom: pr.bottom + gap };
+      const bubble = it.label.el.querySelector('.label-bubble');
+      if (bubble && !bubble.hidden) {
+        const br = bubble.getBoundingClientRect();
+        r.left = Math.min(r.left, br.left); r.right = Math.max(r.right, br.right); r.top = Math.min(r.top, br.top);
+      }
+      const hit = kept.some((k) => r.left < k.right && r.right > k.left && r.top < k.bottom && r.bottom > k.top);
       it.label.el.classList.toggle('is-dim', hit);
       it.label.el.classList.toggle('is-hidden-overlap', hit && stage.portrait);
       if (!hit) kept.push(r);
@@ -770,15 +762,7 @@ export async function createGame({ stage, shop, hud, sound, leaderboard, hints, 
     sound.setTyping(dark.on ? 0 : seated().filter((p) => p.state === 'sit').length / stations.length);
   }
 
-  // Khôi phục tiến độ đã lưu (nếu có), không thì bắt đầu với số xu mặc định
-  if (saved && Number.isFinite(saved.coins)) {
-    goalIdx = Math.min(Math.max(0, saved.goalIdx | 0), CONFIG.goals.length - 1);
-    for (let i = 0; i < goalIdx; i++) if (CONFIG.goals[i].unlock === 'aircon') shop.aircon.visible = true;
-    if (saved.aircon) shop.aircon.visible = true;
-    addCoins(saved.coins);
-  } else addCoins(CONFIG.startCoins);
   refreshCount();
 
-  const progress = () => ({ coins, goalIdx, aircon: shop.aircon.visible });
-  return { handlers, update, players, progress };
+  return { handlers, update, players };
 }
